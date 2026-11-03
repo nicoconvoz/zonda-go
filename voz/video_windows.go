@@ -23,7 +23,7 @@ var videoCargado struct {
 func cargarVideo() error {
 	v := &videoCargado
 	v.once.Do(func() {
-		dir, err := extraer()
+		dir, err := carpetaDLL()
 		if err != nil {
 			v.err = err
 			return

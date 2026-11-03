@@ -3,9 +3,6 @@
 package voz
 
 import (
-	"crypto/sha256"
-	"embed"
-	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -15,45 +12,30 @@ import (
 
 // APM is WebRTC's own audio processing module, the real one (webrtc-audio-processing, the same code libwebrtc runs on
 // every call: high-pass, echo canceller AEC3, noise suppressor, AGC2), reached through apm/zapm.cc, a small C bridge
-// compiled with MSYS2's gcc. The DLLs travel inside this program and are written out once to the user's folder; Go
-// calls them with syscall, no cgo. When they cannot load, the translated pieces (Procesador) take over.
+// compiled with MSYS2's gcc. The DLLs sit next to the program; Go calls them with syscall, no cgo. When they cannot load, the translated pieces (Procesador) take over.
 type APM struct {
 	h         uintptr
 	retardoMs int
 }
 
-//go:embed apm_dlls/*.dll
-var dllsAPM embed.FS
-
 // The load order matters only for the first one asked for; the rest are found next to it.
 var ordenDLL = []string{"libwinpthread-1.dll", "libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwebrtc-audio-processing-1-3.dll", "zapm.dll", "zvid.dll"}
 
-// extraer writes the DLLs into a folder named by their fingerprint, so a new build never loads an old copy.
-func extraer() (string, error) {
-	h := sha256.New()
-	for _, n := range ordenDLL {
-		b, err := dllsAPM.ReadFile("apm_dlls/" + n)
-		if err != nil {
-			return "", err
-		}
-		h.Write(b)
+// carpetaDLL finds the folder that holds the DLLs: next to the program, as any installed program keeps its libraries
+// (construir.ps1 puts them there). Writing code out at run time and loading it is what antivirus heuristics flag, so
+// nothing is extracted. Running from the sources (go run, go test) they are found in voz/apm_dlls.
+func carpetaDLL() (string, error) {
+	var dirs []string
+	if exe, err := os.Executable(); err == nil {
+		dirs = append(dirs, filepath.Dir(exe))
 	}
-	dir := filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo", "apm-"+hex.EncodeToString(h.Sum(nil))[:12])
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	for _, n := range ordenDLL {
-		p := filepath.Join(dir, n)
-		if _, err := os.Stat(p); err == nil {
-			continue
+	dirs = append(dirs, "apm_dlls", filepath.Join("voz", "apm_dlls"))
+	for _, d := range dirs {
+		if _, err := os.Stat(filepath.Join(d, "zapm.dll")); err == nil {
+			return filepath.Abs(d)
 		}
-		b, _ := dllsAPM.ReadFile("apm_dlls/" + n)
-		if err := os.WriteFile(p+".tmp", b, 0o644); err != nil {
-			return "", err
-		}
-		os.Rename(p+".tmp", p)
 	}
-	return dir, nil
+	return "", errors.New("faltan las DLL de WebRTC al lado de zondago.exe")
 }
 
 var (
@@ -101,7 +83,7 @@ func cargarAPM() error {
 		return apmCargada.err
 	}
 	apmCargada.lista = true
-	dir, err := extraer()
+	dir, err := carpetaDLL()
 	if err == nil {
 		var dll uintptr
 		if dll, err = cargar(dir, "zapm.dll"); err == nil {
