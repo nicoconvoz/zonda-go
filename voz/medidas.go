@@ -105,7 +105,10 @@ func volcar(dir string) {
 		f.Write([]byte("RIFF"))
 		binary.Write(f, binary.LittleEndian, 36+n)
 		f.Write([]byte("WAVEfmt "))
-		binary.Write(f, binary.LittleEndian, []any{uint32(16), uint16(1), uint16(1), uint32(48000), uint32(96000), uint16(2), uint16(16)})
+		// binary.Write takes one fixed-size value at a time: a []any wrote nothing and left the header broken.
+		for _, v := range []any{uint32(16), uint16(1), uint16(1), uint32(48000), uint32(96000), uint16(2), uint16(16)} {
+			binary.Write(f, binary.LittleEndian, v)
+		}
 		f.Write([]byte("data"))
 		binary.Write(f, binary.LittleEndian, n)
 		binary.Write(f, binary.LittleEndian, pcm)

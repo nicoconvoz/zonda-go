@@ -31,6 +31,7 @@ type Sala struct {
 
 	pantalla *pantalla
 	enc      *opus.Encoder
+	proc     *Procesador
 	comp     *Compuerta
 
 	// The Go devices in the channel: their voice goes by the relay tree over the data links (arbol.go).
@@ -144,7 +145,7 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 	}
 	s.mu.Lock()
 	s.canal, s.pista, s.mic, s.parlante, s.hablando = canal, pista, mic, parlante, false
-	s.enc, s.comp = enc, NuevaCompuerta()
+	s.enc, s.proc, s.comp = enc, NuevoProcesador(), NuevaCompuerta()
 	s.goPares, s.fuentes, s.vistos = map[string]bool{}, map[string]*Fuente{}, map[string]map[uint32]bool{}
 	s.mu.Unlock()
 	for _, k := range miembros {
@@ -188,7 +189,7 @@ func (s *Sala) Salir() {
 
 func (s *Sala) alMicrofono(pcm []int16) {
 	s.mu.Lock()
-	on, pista, canal, enc, comp := s.hablando, s.pista, s.canal, s.enc, s.comp
+	on, pista, canal, enc, proc, comp := s.hablando, s.pista, s.canal, s.enc, s.proc, s.comp
 	s.seq++
 	seq, miembros := s.seq, s.miembrosGo()
 	s.mu.Unlock()
@@ -198,6 +199,8 @@ func (s *Sala) alMicrofono(pcm []int16) {
 	if !on || pista == nil || enc == nil || len(pcm) != Muestras {
 		return
 	}
+	// The hum and the hiss go first; the automatic gain then brings up the voice, not the noise.
+	proc.Procesar(pcm)
 	comp.Limpiar(pcm)
 	anotar("microfono-enviado", pcm)
 	buf := make([]byte, 1500)
