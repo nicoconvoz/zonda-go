@@ -1,1 +1,5 @@
 *.dll -delta binary
+*.syso -delta binary
+*.ttf -delta binary
+*.png -delta binary
+*.ico -delta binary

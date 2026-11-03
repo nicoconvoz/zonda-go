@@ -15,7 +15,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 /* ---------- the shell (app/shell.dart): the bar with the three sections ---------- */

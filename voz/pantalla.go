@@ -16,8 +16,8 @@ import (
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 
-	"github.com/nicoconvoz/zonda/zondago/diag"
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/diag"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 // The screen, the way the web shares it: captured, converted and scaled by libyuv, encoded in VP8 by libvpx (the

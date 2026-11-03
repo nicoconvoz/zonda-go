@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nicoconvoz/zonda/zondago/diag"
+	"github.com/nicoconvoz/zonda-go/diag"
 )
 
 /* ---------- the Nostr board (net/nostr.dart, adapters/nostr_relays.dart): first contact only ---------- */

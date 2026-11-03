@@ -7,7 +7,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/nicoconvoz/zonda/zondago/voz"
+	"github.com/nicoconvoz/zonda-go/voz"
 )
 
 func main() {

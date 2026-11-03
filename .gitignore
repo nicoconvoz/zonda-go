@@ -1,0 +1,8 @@
+dist/
+zondago.exe
+*.pprof
+# De terceros: se consiguen con la receta de CONSTRUIR.md, no viajan en el repositorio.
+voz/apm_dlls/
+interfaz/fuentes/*.ttf
+apm/*.dll
+video/*.dll

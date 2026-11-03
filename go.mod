@@ -1,4 +1,4 @@
-module github.com/nicoconvoz/zonda/zondago
+module github.com/nicoconvoz/zonda-go
 
 go 1.27
 

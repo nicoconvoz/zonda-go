@@ -30,9 +30,9 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/explorer"
 
-	"github.com/nicoconvoz/zonda/zondago/bandeja"
-	"github.com/nicoconvoz/zonda/zondago/diag"
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/bandeja"
+	"github.com/nicoconvoz/zonda-go/diag"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 type pantalla int

@@ -15,8 +15,8 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
-	"github.com/nicoconvoz/zonda/zondago/voz"
+	"github.com/nicoconvoz/zonda-go/nucleo"
+	"github.com/nicoconvoz/zonda-go/voz"
 )
 
 /* ---------- a room (features/salas/presentation/room_screen.dart) ---------- */

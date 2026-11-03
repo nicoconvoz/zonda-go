@@ -13,8 +13,8 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/tphakala/go-opus/opus"
 
-	"github.com/nicoconvoz/zonda/zondago/diag"
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/diag"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 // Sala is the voice of one channel of a room: a connection with each member in it (the lower key offers), the same

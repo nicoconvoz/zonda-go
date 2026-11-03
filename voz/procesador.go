@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/nicoconvoz/zonda/zondago/voz/webrtcns"
+	"github.com/nicoconvoz/zonda-go/voz/webrtcns"
 )
 
 // Procesador is the microphone's voice processing, the way WebRTC does it (audio_processing_impl.cc,

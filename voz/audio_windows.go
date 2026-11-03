@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/nicoconvoz/zonda/zondago/diag"
+	"github.com/nicoconvoz/zonda-go/diag"
 )
 
 // The microphone and the speaker through winmm (waveIn / waveOut), pure Go: 48 kHz mono 16-bit, the rate Opus

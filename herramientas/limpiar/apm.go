@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/nicoconvoz/zonda/zondago/voz"
+	"github.com/nicoconvoz/zonda-go/voz"
 )
 
 // procesarAPM runs the recording through WebRTC's real APM (when ZONDA_APM=1): the bench for the bridge.

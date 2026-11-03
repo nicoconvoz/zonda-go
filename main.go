@@ -12,11 +12,11 @@ import (
 
 	"gioui.org/app"
 
-	"github.com/nicoconvoz/zonda/zondago/bandeja"
-	"github.com/nicoconvoz/zonda/zondago/diag"
-	"github.com/nicoconvoz/zonda/zondago/interfaz"
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
-	"github.com/nicoconvoz/zonda/zondago/voz"
+	"github.com/nicoconvoz/zonda-go/bandeja"
+	"github.com/nicoconvoz/zonda-go/diag"
+	"github.com/nicoconvoz/zonda-go/interfaz"
+	"github.com/nicoconvoz/zonda-go/nucleo"
+	"github.com/nicoconvoz/zonda-go/voz"
 )
 
 func main() {

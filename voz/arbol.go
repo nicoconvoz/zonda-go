@@ -6,7 +6,7 @@ import (
 	"hash/fnv"
 	"sort"
 
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 // The Captain's relay tree for the voice between Go devices: whoever speaks sends to Ramas members; each of those

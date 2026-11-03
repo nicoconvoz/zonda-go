@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nicoconvoz/zonda/zondago/diag"
+	"github.com/nicoconvoz/zonda-go/diag"
 )
 
 func ahora() int64 { return time.Now().UnixMilli() }

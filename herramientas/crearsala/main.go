@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 func main() {

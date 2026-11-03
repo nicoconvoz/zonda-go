@@ -14,7 +14,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda-go/nucleo"
 )
 
 /* ---------- Usuarios: the profile (features/perfil) ---------- */
