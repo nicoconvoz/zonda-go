@@ -63,25 +63,60 @@ func (m *medidas) Texto() string {
 
 type grabacion struct {
 	mu     sync.Mutex
-	pistas map[string][]int16
+	pistas map[string]*pista
 }
 
 // Always on in this experiment (ZONDAGO_GRABAR=0 turns it off): every call leaves its last minute measured, with no
 // command to type. The files stay on this computer.
 var grabar = os.Getenv("ZONDAGO_GRABAR") != "0"
-var cinta = &grabacion{pistas: map[string][]int16{}}
+var cinta = &grabacion{pistas: map[string]*pista{}}
+
+// muestrasCinta: one minute at 48 kHz, 5.5 MB a track, allocated once.
+const muestrasCinta = 48000 * 60
+
+// pista is a ring: a fixed buffer written in a circle, so keeping the last minute costs one copy of each frame.
+type pista struct {
+	buf   []int16
+	pos   int
+	llena bool
+}
+
+func nuevaPista(n int) *pista { return &pista{buf: make([]int16, n)} }
+
+func (p *pista) anotar(pcm []int16) {
+	if len(pcm) > len(p.buf) {
+		pcm = pcm[len(pcm)-len(p.buf):]
+	}
+	for len(pcm) > 0 {
+		c := copy(p.buf[p.pos:], pcm)
+		pcm = pcm[c:]
+		p.pos += c
+		if p.pos == len(p.buf) {
+			p.pos, p.llena = 0, true
+		}
+	}
+}
+
+// enOrden: what the ring holds, oldest first.
+func (p *pista) enOrden() []int16 {
+	if !p.llena {
+		return append([]int16(nil), p.buf[:p.pos]...)
+	}
+	return append(append([]int16(nil), p.buf[p.pos:]...), p.buf[:p.pos]...)
+}
 
 // anotar keeps a copy of pcm in the named track: the last minute.
-func anotar(pista string, pcm []int16) {
+func anotar(nombre string, pcm []int16) {
 	if !grabar {
 		return
 	}
 	cinta.mu.Lock()
-	t := append(cinta.pistas[pista], pcm...)
-	if len(t) > 48000*60 {
-		t = append([]int16(nil), t[len(t)-48000*60:]...)
+	p := cinta.pistas[nombre]
+	if p == nil {
+		p = nuevaPista(muestrasCinta)
+		cinta.pistas[nombre] = p
 	}
-	cinta.pistas[pista] = t
+	p.anotar(pcm)
 	cinta.mu.Unlock()
 }
 
@@ -91,8 +126,11 @@ func volcar(dir string) {
 		return
 	}
 	cinta.mu.Lock()
-	pistas := cinta.pistas
-	cinta.pistas = map[string][]int16{}
+	pistas := map[string][]int16{}
+	for nombre, p := range cinta.pistas {
+		pistas[nombre] = p.enOrden()
+	}
+	cinta.pistas = map[string]*pista{}
 	cinta.mu.Unlock()
 	if len(pistas) == 0 {
 		return
