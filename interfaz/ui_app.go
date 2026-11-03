@@ -191,9 +191,7 @@ func (a *App) salas(gtx layout.Context) layout.Dimensions {
 				return fila(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.cuadrado(gtx, a.clic("sub:salas"), "salas", true) }), sep(10),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.cuadradoImagen(gtx, &a.gotching, imgGotching) }), sep(10),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.cuadradoImagen(gtx, &a.wenas, imgWenas) }),
-					layout.Flexed(1, layout.Spacer{}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.anillo(gtx, a.clic("mas"), "grid") }))
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.cuadradoImagen(gtx, &a.wenas, imgWenas) }))
 			})
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return a.listado(gtx, &a.principal, items) }),

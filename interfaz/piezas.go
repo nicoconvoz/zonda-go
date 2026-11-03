@@ -5,9 +5,7 @@ import (
 	_ "embed"
 	"image"
 	"image/color"
-	"math"
 
-	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -106,33 +104,6 @@ func (a *App) cuadradoImagen(gtx layout.Context, c *widget.Clickable, img paint.
 		widget.Image{Src: img, Fit: widget.Cover}.Layout(g)
 		st.Pop()
 		paint.FillShape(gtx.Ops, piel.Line, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(dp(gtx, 1.5))}.Op())
-		return layout.Dimensions{Size: tam}
-	})
-}
-
-// anillo is IbGlowRing: a 50 px circle ringed with the glow colors, an icon in the middle.
-func (a *App) anillo(gtx layout.Context, c *widget.Clickable, icono string) layout.Dimensions {
-	return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		s := dp(gtx, 50)
-		tam := image.Pt(s, s)
-		paint.FillShape(gtx.Ops, piel.Surface, clip.Ellipse{Max: tam}.Op(gtx.Ops))
-		const n = 48
-		cx, cy, rad := float32(s)/2, float32(s)/2, float32(s)/2-float32(dp(gtx, 2))
-		for i := 0; i < n; i++ {
-			t := float32(i) / n
-			k := t * float32(len(glow)-1)
-			col := mezcla(glow[int(k)], glow[min(int(k)+1, len(glow)-1)], k-float32(int(k)))
-			a0, a1 := 2*math.Pi*float64(i)/n, 2*math.Pi*float64(i+1)/n+0.02
-			var p clip.Path
-			p.Begin(gtx.Ops)
-			p.MoveTo(f32.Pt(cx+rad*float32(math.Cos(a0)), cy+rad*float32(math.Sin(a0))))
-			p.LineTo(f32.Pt(cx+rad*float32(math.Cos(a1)), cy+rad*float32(math.Sin(a1))))
-			paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: float32(dp(gtx, 3.5))}.Op())
-		}
-		lado := dp(gtx, 24)
-		st := op.Offset(image.Pt((s-lado)/2, (s-lado)/2)).Push(gtx.Ops)
-		dibujarIcono(gtx, icono, lado, piel.Ink)
-		st.Pop()
 		return layout.Dimensions{Size: tam}
 	})
 }
