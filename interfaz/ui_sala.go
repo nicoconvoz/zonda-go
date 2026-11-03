@@ -449,48 +449,14 @@ func (a *App) lineaPersona(gtx layout.Context, i int, l nucleo.LineaSala) layout
 	d := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		media := l.Foto != "" || l.Archivo != nil
-		return columna(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lb := material.Label(a.th, unit.Sp(15), l.Nick+":")
-				lb.Color, lb.Font.Weight = ink, font.Bold
-				return lb.Layout(gtx)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if media && (l.Texto == "🖼️" || strings.HasPrefix(l.Texto, "📎 ")) {
-					return layout.Dimensions{}
-				}
-				lb := material.Label(a.th, unit.Sp(15), l.Texto)
-				lb.Color = ink
-				return lb.Layout(gtx)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if l.Foto == "" {
-					return layout.Dimensions{}
-				}
-				return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return a.foto(gtx, fmt.Sprintf("%s|%d|%s", l.Sala, l.Epoca, l.Foto), n.Adjunto(l, l.Foto), 240)
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if l.Archivo == nil {
-					return layout.Dimensions{}
-				}
-				nombre := nucleo.Interpolar(l.Archivo["n"])
-				if n.Adjunto(l, nucleo.Interpolar(l.Archivo["h"])) == nil {
-					nombre = "Trayendo " + nombre + "…"
-				}
-				return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return a.clic(fmt.Sprintf("arch:%d", i)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return fila(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono2(gtx, "clip", 18, ink) }), sep(6),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								lb := material.Label(a.th, unit.Sp(14), nombre)
-								lb.Color = ink
-								return lb.Layout(gtx)
-							}))
-					})
-				})
-			}))
+		texto := func(gtx layout.Context) layout.Dimensions { return a.cuerpoLinea(gtx, i, l, ink, media) }
+		// The author's profile photo beside the line, when they have one.
+		if n.FotoDe(l.Por) == "" {
+			return texto(gtx)
+		}
+		return layout.Flex{Alignment: layout.Start}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.avatar(gtx, l.Por, l.Nick, 36) }), sep(10),
+			layout.Flexed(1, texto))
 	})
 	call := m.Stop()
 	paint.FillShape(gtx.Ops, bg, clip.Rect{Max: d.Size}.Op())
@@ -499,6 +465,53 @@ func (a *App) lineaPersona(gtx layout.Context, i int, l nucleo.LineaSala) layout
 	}
 	call.Add(gtx.Ops)
 	return d
+}
+
+// cuerpoLinea: the nick, the text and the photo or file of a room line.
+func (a *App) cuerpoLinea(gtx layout.Context, i int, l nucleo.LineaSala, ink color.NRGBA, media bool) layout.Dimensions {
+	n := a.n
+	return columna(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lb := material.Label(a.th, unit.Sp(15), l.Nick+":")
+			lb.Color, lb.Font.Weight = ink, font.Bold
+			return lb.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if media && (l.Texto == "🖼️" || strings.HasPrefix(l.Texto, "📎 ")) {
+				return layout.Dimensions{}
+			}
+			lb := material.Label(a.th, unit.Sp(15), l.Texto)
+			lb.Color = ink
+			return lb.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if l.Foto == "" {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return a.foto(gtx, fmt.Sprintf("%s|%d|%s", l.Sala, l.Epoca, l.Foto), n.Adjunto(l, l.Foto), 240)
+			})
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if l.Archivo == nil {
+				return layout.Dimensions{}
+			}
+			nombre := nucleo.Interpolar(l.Archivo["n"])
+			if n.Adjunto(l, nucleo.Interpolar(l.Archivo["h"])) == nil {
+				nombre = "Trayendo " + nombre + "…"
+			}
+			return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return a.clic(fmt.Sprintf("arch:%d", i)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return fila(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono2(gtx, "clip", 18, ink) }), sep(6),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lb := material.Label(a.th, unit.Sp(14), nombre)
+							lb.Color = ink
+							return lb.Layout(gtx)
+						}))
+				})
+			})
+		}))
 }
 
 // clicsMiembros handles the "⋯" menu of each member: a private message, and kick or ban for the creator.
