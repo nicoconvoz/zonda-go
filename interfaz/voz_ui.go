@@ -27,7 +27,9 @@ func (a *App) vozClicks(gtx layout.Context, room string, b *nucleo.Libro) {
 			if a.voz.Canal() == id {
 				a.voz.Salir()
 			} else if err := a.voz.Entrar(id, a.n.EnSala(room)); err != nil {
-				a.aviso = err.Error()
+				a.avisoVoz = "No se pudo abrir la voz: " + err.Error()
+			} else {
+				a.avisoVoz = ""
 			}
 		}
 	}
@@ -36,7 +38,7 @@ func (a *App) vozClicks(gtx layout.Context, room string, b *nucleo.Libro) {
 	}
 	if a.compartir.Clicked(gtx) {
 		if err := a.voz.AlternarPantalla(); err != nil {
-			a.aviso = err.Error()
+			a.avisoVoz = err.Error()
 		}
 	}
 	for k := range a.voz.Pantallas() {
@@ -59,15 +61,15 @@ func (a *App) barraVoz(gtx layout.Context, b *nucleo.Libro) layout.Dimensions {
 	return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return columna(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				hijos := []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.chico(gtx, "Voz: ") })}
+				hijos := []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.chico(gtx, "Voz (tocá un canal para entrar): ") })}
 				for _, c := range b.Canales() {
 					c := c
 					id := room + "/" + c
 					hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						if canal == id {
-							return a.boton(gtx, a.clic("canal:"+id), "🔊 "+c)
+							return a.boton(gtx, a.clic("canal:"+id), "🔊 "+c+" · salir")
 						}
-						return a.botonSuave(gtx, a.clic("canal:"+id), c)
+						return a.botonSuave(gtx, a.clic("canal:"+id), "🔈 "+c)
 					}), sep(6))
 				}
 				if canal != "" && len(canal) > len(room) && canal[:len(room)] == room {
@@ -95,6 +97,12 @@ func (a *App) barraVoz(gtx layout.Context, b *nucleo.Libro) layout.Dimensions {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.botonSuave(gtx, &a.fijarCanales, "Fijar") }))
 				}
 				return fila(gtx, hijos...)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if a.avisoVoz == "" {
+					return layout.Dimensions{}
+				}
+				return a.texto(gtx, a.avisoVoz, acento)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.pantallas(gtx) }),
 		)

@@ -80,6 +80,7 @@ type App struct {
 	fotoAlta  []byte
 	imagenes  map[string]paint.ImageOp
 	aviso     string
+	avisoVoz  string
 	pantallaGrande string
 }
 
