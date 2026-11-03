@@ -17,4 +17,15 @@ foreach ($dll in Get-ChildItem voz\apm_dlls\*.dll) {
         Copy-Item $dll.FullName $destino -Force
     }
 }
+# The licenses travel with the program: Zonda's own and those of everything compiled or shipped with it.
+go run ./herramientas/licencias -salida licencias\go
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not (Test-Path licencias\terceros)) {
+    Write-Host "Faltan licencias\terceros: corré antes bash herramientas/terceros.sh"
+    exit 1
+}
+Remove-Item dist\licencias -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force dist\licencias | Out-Null
+Copy-Item LICENSE, NOTICE, TERCEROS.md dist\licencias\
+Copy-Item licencias\go, licencias\terceros dist\licencias\ -Recurse
 Get-ChildItem dist | Select-Object Name, Length

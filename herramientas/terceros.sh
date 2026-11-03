@@ -57,4 +57,24 @@ for fam in "Chakra Petch:400;600;700" "Figtree:400;600;800" "Fredoka:400;600" "I
 		done
 done
 
-echo "listo: voz/apm_dlls y interfaz/fuentes completos"
+echo "== las licencias de todo lo anterior (viajan con el programa compilado)"
+L=licencias/terceros
+mkdir -p "$L"
+lic="$UCRT/share/licenses"
+cp "$lic/webrtc-audio-processing-1/COPYING" "$L/webrtc-audio-processing.txt"
+cp "$lic/libyuv/LICENSE" "$L/libyuv.txt"
+cp "$lic/libjpeg-turbo/LICENSE.md" "$L/libjpeg-turbo.md"
+cp "$lic/libjpeg-turbo/README.ijg" "$L/libjpeg-turbo-ijg.txt"
+cp "$lic/gcc-libs/COPYING3" "$L/gcc-GPL-3.0.txt"
+cp "$lic/gcc-libs/COPYING.RUNTIME" "$L/gcc-runtime-library-exception.txt"
+cp "$lic/libwinpthread/COPYING" "$L/winpthreads.txt"
+# MSYS2's libvpx package carries no license file: it comes from the WebM project, at the same version.
+vpx=$(pacman -Q mingw-w64-ucrt-x86_64-libvpx | awk '{print $2}' | sed 's/-[0-9]*$//')
+for f in LICENSE PATENTS; do
+	curl -fsS "https://raw.githubusercontent.com/webmproject/libvpx/v${vpx}/${f}" -o "$L/libvpx-${f}.txt"
+done
+for fam in chakrapetch figtree fredoka imfellenglish sora; do
+	curl -fsS "https://raw.githubusercontent.com/google/fonts/main/ofl/${fam}/OFL.txt" -o "$L/fuente-${fam}-OFL.txt"
+done
+
+echo "listo: voz/apm_dlls, interfaz/fuentes y licencias/terceros completos"
