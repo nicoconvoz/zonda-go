@@ -5,25 +5,21 @@ import (
 	"math/cmplx"
 )
 
-// Procesador is the microphone's voice processing, built from scratch in pure Go after measuring the Captain's own
-// microphone (herramientas/limpiar reads a recording and reports it): its worst noise was the mains hum (a peak at
-// 50 Hz with harmonics at 100 and 150), then a steady hiss in the highs. Browsers clean both before sending; this does
-// the same, in order:
+// Procesador is the microphone's voice processing, in WebRTC's order (audio_processing_impl.cc,
+// ProcessCaptureStreamLocked): high-pass filter, then echo cancellation, then noise suppression, then gain. Measured on
+// the Captain's own microphone (herramientas/limpiar reads a recording and reports it): its worst noise was the mains
+// hum (a peak at 50 Hz), then a steady hiss in the highs.
 //
-//  1. a 4th-order high-pass at corteHz (Butterworth, two biquads): voices carry almost nothing below 85 Hz, the hum's
-//     fundamental lives there;
-//  2. narrow notches at the hum's 2nd and 3rd harmonics, which fall inside the voice's range (the mains frequency,
-//     50 or 60 Hz, is found from the quiet frames);
+//  1. WebRTC's own high-pass filter, identical (pasa_altos.go): −68 dB at 50 Hz;
+//  2. (echo cancellation: not yet; WebRTC's AEC3 needs the speaker's signal as reference);
 //  3. a spectral noise suppressor: the noise of each band is the lowest level it had in the last ~1.5 s (steady
 //     hiss stays, a voice does not), and what is only that noise is turned down by up to pisoGanancia. Everything
-//     that changes (voice, people, the room's sounds) passes.
+//     that changes (voice, people, the room's sounds) passes. (Being replaced by a port of WebRTC's own.)
 //
-// It runs in hops of 10 ms with a 20 ms window (overlap-add), so it adds 10 ms of delay.
+// The gain (AGC) runs after it, in Compuerta. It works in hops of 10 ms with a 20 ms window (overlap-add), so it adds
+// 10 ms of delay.
 type Procesador struct {
-	altos    [2]biquad
-	muescas  []biquad
-	red      float64 // mains frequency found (0 while still listening)
-	e50, e60 float64
+	altos *PasaAltos
 
 	ventana   []float64
 	entrada   []float64 // the last tamVentana input samples
@@ -32,7 +28,6 @@ type Procesador struct {
 	potencia  []float64 // smoothed power per bin
 	minPrevio []float64 // the lowest of that power in the previous window of saltosMinimo hops
 	minActual []float64 // and in the current one: the noise is the lower of the two
-	cuentaRed int
 	saltos    int
 	ganancia  []float64
 }
@@ -50,36 +45,10 @@ const (
 	sobreRuido   = 2.0 // power over the floor that counts as signal (3 dB)
 )
 
-type biquad struct{ b0, b1, b2, a1, a2, z1, z2 float64 }
-
-func (q *biquad) paso(x float64) float64 {
-	y := q.b0*x + q.z1
-	q.z1 = q.b1*x - q.a1*y + q.z2
-	q.z2 = q.b2*x - q.a2*y
-	return y
-}
-
-// pasaAltos and muesca follow the RBJ audio EQ cookbook.
-func pasaAltos(f, qf float64) biquad {
-	w := 2 * math.Pi * f / 48000
-	al := math.Sin(w) / (2 * qf)
-	c := math.Cos(w)
-	a0 := 1 + al
-	return biquad{b0: (1 + c) / 2 / a0, b1: -(1 + c) / a0, b2: (1 + c) / 2 / a0, a1: -2 * c / a0, a2: (1 - al) / a0}
-}
-
-func muesca(f, qf float64) biquad {
-	w := 2 * math.Pi * f / 48000
-	al := math.Sin(w) / (2 * qf)
-	c := math.Cos(w)
-	a0 := 1 + al
-	return biquad{b0: 1 / a0, b1: -2 * c / a0, b2: 1 / a0, a1: -2 * c / a0, a2: (1 - al) / a0}
-}
-
 func NuevoProcesador() *Procesador {
 	p := &Procesador{
 		// The two stages of a 4th-order Butterworth: Q = 0.541 and 1.307.
-		altos:   [2]biquad{pasaAltos(corteHz, 0.5412), pasaAltos(corteHz, 1.3066)},
+		altos:   NuevoPasaAltos(),
 		ventana: make([]float64, tamVentana), entrada: make([]float64, tamVentana), salida: make([]float64, tamVentana),
 		potencia: make([]float64, tamFFT/2+1), minPrevio: make([]float64, tamFFT/2+1), minActual: make([]float64, tamFFT/2+1),
 		ganancia: make([]float64, tamFFT/2+1),
@@ -94,40 +63,19 @@ func NuevoProcesador() *Procesador {
 	return p
 }
 
-// goertzel: the power of frequency f in x.
-func goertzel(x []float64, f float64) float64 {
-	k := 2 * math.Cos(2*math.Pi*f/48000)
-	var s1, s2 float64
-	for _, v := range x {
-		s1, s2 = v+k*s1-s2, s1
-	}
-	return s1*s1 + s2*s2 - k*s1*s2
-}
-
 // Procesar cleans one frame in place (any length; the output is delayed by one hop).
 func (p *Procesador) Procesar(pcm []int16) {
 	x := make([]float64, len(pcm))
 	for i, v := range pcm {
 		x[i] = float64(v)
 	}
-	// Find the mains frequency during the first seconds, from the energy at 50 and 60 Hz.
-	if p.red == 0 {
-		p.e50 += goertzel(x, 50)
-		p.e60 += goertzel(x, 60)
-		if p.cuentaRed++; p.cuentaRed >= 100 {
-			p.red = 50
-			if p.e60 > p.e50 {
-				p.red = 60
-			}
-			p.muescas = []biquad{muesca(2*p.red, 8), muesca(3*p.red, 8)}
-		}
-	}
+	f := make([]float32, len(x))
 	for i, v := range x {
-		v = p.altos[1].paso(p.altos[0].paso(v))
-		for k := range p.muescas {
-			v = p.muescas[k].paso(v)
-		}
-		x[i] = v
+		f[i] = float32(v)
+	}
+	p.altos.Procesar(f)
+	for i, v := range f {
+		x[i] = float64(v)
 	}
 	for len(x) > 0 {
 		n := min(salto, len(x))
