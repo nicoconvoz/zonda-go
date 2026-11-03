@@ -99,6 +99,12 @@ func (a *App) barraVoz(gtx layout.Context, b *nucleo.Libro) layout.Dimensions {
 				return fila(gtx, hijos...)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if canal == "" {
+					return layout.Dimensions{}
+				}
+				return a.chico(gtx, a.voz.Medidas())
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if a.avisoVoz == "" {
 					return layout.Dimensions{}
 				}

@@ -32,9 +32,14 @@ func nuevaFuente() *Fuente { return &Fuente{dec: nuevoDecodificador()} }
 // Llegó queues one packet.
 func (f *Fuente) Llego(pkt []byte) {
 	f.mu.Lock()
+	ahora := time.Now()
+	if !f.ultimo.IsZero() && ahora.Sub(f.ultimo) < time.Second {
+		Medidas.llegada(ahora.Sub(f.ultimo))
+	}
 	f.fila = append(f.fila, append([]byte(nil), pkt...))
-	f.ultimo = time.Now()
+	f.ultimo = ahora
 	f.mu.Unlock()
+	Medidas.recibidos.Add(1)
 }
 
 // Siguiente gives the next 20 ms of this voice: the next packet decoded (older ones beyond the cushion dropped), a
@@ -44,6 +49,7 @@ func (f *Fuente) Siguiente() []int16 {
 	defer f.mu.Unlock()
 	for len(f.fila) > colchon {
 		f.fila = f.fila[1:]
+		Medidas.tirados.Add(1)
 	}
 	out := make([]int16, Muestras)
 	if len(f.fila) > 0 {
@@ -51,11 +57,13 @@ func (f *Fuente) Siguiente() []int16 {
 		f.fila = f.fila[1:]
 		if n, err := f.dec.Decode(pkt, out); err == nil && n > 0 {
 			f.sonando = true
+			Medidas.decodificados.Add(1)
 			return out[:n]
 		}
 	}
 	if f.sonando && time.Since(f.ultimo) < ocultarHasta {
 		if n, err := f.dec.Decode(nil, out); err == nil && n > 0 {
+			Medidas.ocultados.Add(1)
 			return out[:n]
 		}
 	}

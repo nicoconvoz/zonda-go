@@ -3,6 +3,8 @@ package voz
 import (
 	"errors"
 	"image"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -151,7 +153,11 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 	return nil
 }
 
+// Medidas: the voice's live counters, for the room.
+func (s *Sala) Medidas() string { return Medidas.Texto() }
+
 func (s *Sala) Salir() {
+	volcar(filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo", "grabaciones"))
 	s.pantalla.parar()
 	s.mu.Lock()
 	canal, pcs, mic, parlante := s.canal, s.pcs, s.mic, s.parlante
@@ -186,7 +192,9 @@ func (s *Sala) alMicrofono(pcm []int16) {
 	if !on || pista == nil || enc == nil || len(pcm) != Muestras {
 		return
 	}
+	anotar("microfono-crudo", pcm)
 	comp.Limpiar(pcm)
+	anotar("microfono-enviado", pcm)
 	buf := make([]byte, 1500)
 	n, err := enc.Encode(pcm, buf)
 	if err != nil || n <= 0 {
@@ -272,6 +280,7 @@ func (s *Sala) mezclar(out []int16) {
 	for i, v := range acc {
 		out[i] = limitar(float64(v))
 	}
+	anotar("parlante", out)
 }
 
 func (s *Sala) nuevaConexion(peer string) (*conexion, error) {

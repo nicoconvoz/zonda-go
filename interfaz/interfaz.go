@@ -53,6 +53,7 @@ type Voz interface {
 	Compartiendo() bool
 	AlternarPantalla() error
 	Pantallas() map[string]image.Image
+	Medidas() string
 }
 
 type App struct {

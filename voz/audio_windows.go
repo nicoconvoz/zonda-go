@@ -106,6 +106,18 @@ func AbrirMicrofono(frame func([]int16)) (*Microfono, error) {
 			default:
 			}
 			// Buffers complete in order: take every finished one from where the last pass stopped.
+			listos := 0
+			for _, h := range m.d.hdrs {
+				if h.Flags&whdrDone != 0 {
+					listos++
+				}
+			}
+			if listos >= 2 {
+				Medidas.micAtrasado.Add(1)
+			}
+			if listos == nBuffers {
+				Medidas.micPerdido.Add(1)
+			}
 			for m.d.hdrs[next].Flags&whdrDone != 0 {
 				h, b := m.d.hdrs[next], m.d.bufs[next]
 				pcm := make([]int16, h.BytesRecorded/2)
@@ -180,6 +192,17 @@ func AbrirParlante(siguiente func([]int16)) (*Parlante, error) {
 			case <-p.d.parar:
 				return
 			default:
+			}
+			listos := 0
+			for _, h := range p.d.hdrs {
+				if h.Flags&whdrDone != 0 {
+					listos++
+				}
+			}
+			if listos == enCola {
+				Medidas.parlanteSeco.Add(1)
+			} else if listos >= 2 {
+				Medidas.parlanteAtrasado.Add(1)
 			}
 			for p.d.hdrs[next].Flags&whdrDone != 0 {
 				llenar(next)
