@@ -3,6 +3,9 @@ package voz
 import (
 	"math"
 	"testing"
+	"time"
+
+	"github.com/tphakala/go-opus/opus"
 )
 
 func TestMuLawRoundTripStaysClose(t *testing.T) {
@@ -30,21 +33,6 @@ func abs16(s int16) int16 {
 	return s
 }
 
-// A backlog never stays: with more than the cushion waiting, the old frames go and the newest one plays.
-func TestBacklogDrainsToTheCushion(t *testing.T) {
-	f := make(chan []int16, 10)
-	for i := 0; i < 10; i++ {
-		f <- []int16{int16(i)}
-	}
-	fr := tomar(f)
-	if fr == nil || fr[0] != 10-colchon || len(f) != colchon-1 {
-		t.Fatalf("tocó %v y quedaron %d en la fila", fr, len(f))
-	}
-	if tomar(make(chan []int16, 10)) != nil {
-		t.Fatal("sin nada, silencio")
-	}
-}
-
 func tono(n int, amp float64) []int16 {
 	out := make([]int16, n)
 	for i := range out {
@@ -53,19 +41,18 @@ func tono(n int, amp float64) []int16 {
 	return out
 }
 
-// The room is turned down between words, never cut; a voice a meter away (just over the room) is brought up to a
-// talking level; a loud one is not clipped.
-func TestGateKeepsTheRoomAndBringsAFarVoiceUp(t *testing.T) {
+// The room travels as it sounds; a voice a meter away is brought up to a talking level; a loud one is not clipped; and
+// the gain never jumps at a frame's edge (that step is a crackle).
+func TestGainKeepsTheRoomBringsAFarVoiceUpAndGlides(t *testing.T) {
 	c := NuevaCompuerta()
 	for i := 0; i < 100; i++ {
 		c.Limpiar(tono(Muestras, 80)) // a second of room
 	}
 	h := tono(Muestras, 80)
 	c.Limpiar(h)
-	if r := rms(h); r < 80*0.7*fondoAmbiente*0.8 || r > 80*0.7*0.5 {
-		t.Fatalf("el ambiente: rms %.1f (ni cortado ni entero)", r)
+	if r := rms(h); r < 80*0.7*0.9 {
+		t.Fatalf("el ambiente se apagó: rms %.1f", r)
 	}
-	// Far voice: twice the room's level. After two seconds of talking it reaches a talking level.
 	var lejos []int16
 	for i := 0; i < 100; i++ {
 		lejos = tono(Muestras, 160*1.414)
@@ -80,5 +67,46 @@ func TestGateKeepsTheRoomAndBringsAFarVoiceUp(t *testing.T) {
 		if x == 32767 || x == -32768 {
 			t.Fatal("satura")
 		}
+	}
+	// A constant signal through a changing gain: neighbouring samples never jump.
+	d := NuevaCompuerta()
+	for i := 0; i < 50; i++ {
+		pcm := make([]int16, Muestras)
+		for k := range pcm {
+			pcm[k] = 200
+		}
+		d.Limpiar(pcm)
+		for k := 1; k < len(pcm); k++ {
+			if diff := int(pcm[k]) - int(pcm[k-1]); diff > 2 || diff < -2 {
+				t.Fatalf("salto de ganancia dentro del cuadro %d: %d", i, diff)
+			}
+		}
+	}
+}
+
+// A late packet is concealed (a frame like the last one), never a hole of silence; a backlog drains to the cushion.
+func TestSourceConcealsALatePacketAndDrains(t *testing.T) {
+	enc, _ := opus.NewEncoder(opus.EncoderConfig{SampleRate: 48000, Channels: 1, Bitrate: bitrateVoz})
+	f := nuevaFuente()
+	buf := make([]byte, 1500)
+	for i := 0; i < 10; i++ {
+		n, _ := enc.Encode(tono(Muestras, 6000), buf)
+		f.Llego(buf[:n])
+	}
+	for i := 0; i < colchon+1; i++ {
+		if f.Siguiente() == nil {
+			t.Fatal("hay paquetes y no suena")
+		}
+	}
+	if len(f.fila) != 0 {
+		t.Fatalf("quedaron %d en la fila: la demora no se vació", len(f.fila))
+	}
+	tarde := f.Siguiente()
+	if tarde == nil || rms(tarde) < 100 {
+		t.Fatal("un paquete tarde dejó un hueco de silencio")
+	}
+	time.Sleep(ocultarHasta + 20*time.Millisecond)
+	if f.Siguiente() != nil {
+		t.Fatal("una pausa larga se sigue inventando")
 	}
 }

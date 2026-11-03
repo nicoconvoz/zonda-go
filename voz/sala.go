@@ -30,11 +30,10 @@ type Sala struct {
 	pantalla *pantalla
 	enc      *opus.Encoder
 	comp     *Compuerta
-	decs     map[string]*opus.Decoder // the tree's speakers
 
 	// The Go devices in the channel: their voice goes by the relay tree over the data links (arbol.go).
 	goPares map[string]bool
-	fuentes map[string]chan []int16
+	fuentes map[string]*Fuente
 	vistos  map[string]map[uint32]bool
 	seq     uint32
 }
@@ -43,7 +42,7 @@ type conexion struct {
 	pc         *webrtc.PeerConnection
 	remota     bool
 	pendientes []webrtc.ICECandidateInit
-	sonido     chan []int16
+	sonido     *Fuente
 	conectada  bool
 	segunda    bool
 }
@@ -80,7 +79,7 @@ func NuevaSala(n *nucleo.Nodo) *Sala {
 	// are registered to receive a screen shared from the app (its renegotiation must not fail).
 	m.RegisterCodec(webrtc.RTPCodecParameters{RTPCodecCapability: opusVoz, PayloadType: 111}, webrtc.RTPCodecTypeAudio)
 	m.RegisterCodec(webrtc.RTPCodecParameters{RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeVP8, ClockRate: 90000}, PayloadType: 96}, webrtc.RTPCodecTypeVideo)
-	s := &Sala{n: n, pcs: map[string]*conexion{}, api: webrtc.NewAPI(webrtc.WithMediaEngine(m)), goPares: map[string]bool{}, fuentes: map[string]chan []int16{}, vistos: map[string]map[uint32]bool{}}
+	s := &Sala{n: n, pcs: map[string]*conexion{}, api: webrtc.NewAPI(webrtc.WithMediaEngine(m)), goPares: map[string]bool{}, fuentes: map[string]*Fuente{}, vistos: map[string]map[uint32]bool{}}
 	n.Red.OnVoz = s.alCuadro
 	s.pantalla = nuevaPantalla(s)
 	n.OnSenal = s.alSenal
@@ -143,8 +142,8 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 	}
 	s.mu.Lock()
 	s.canal, s.pista, s.mic, s.parlante, s.hablando = canal, pista, mic, parlante, false
-	s.enc, s.comp, s.decs = enc, NuevaCompuerta(), map[string]*opus.Decoder{}
-	s.goPares, s.fuentes, s.vistos = map[string]bool{}, map[string]chan []int16{}, map[string]map[uint32]bool{}
+	s.enc, s.comp = enc, NuevaCompuerta()
+	s.goPares, s.fuentes, s.vistos = map[string]bool{}, map[string]*Fuente{}, map[string]map[uint32]bool{}
 	s.mu.Unlock()
 	for _, k := range miembros {
 		s.senal(k, nucleo.Msg{"kind": "v-hello", "room": canal, "zg": 1})
@@ -158,7 +157,7 @@ func (s *Sala) Salir() {
 	canal, pcs, mic, parlante := s.canal, s.pcs, s.mic, s.parlante
 	gos := s.goPares
 	s.canal, s.pcs, s.mic, s.parlante, s.hablando = "", map[string]*conexion{}, nil, nil, false
-	s.goPares, s.fuentes = map[string]bool{}, map[string]chan []int16{}
+	s.goPares, s.fuentes = map[string]bool{}, map[string]*Fuente{}
 	s.mu.Unlock()
 	for k, c := range pcs {
 		s.senal(k, nucleo.Msg{"kind": "v-bye", "room": canal})
@@ -237,21 +236,12 @@ func (s *Sala) alCuadro(de string, b []byte) {
 	v[seq] = true
 	f := s.fuentes[src]
 	if f == nil {
-		f = make(chan []int16, 10)
+		f = nuevaFuente()
 		s.fuentes[src] = f
 	}
-	d := s.decs[src]
-	if d == nil {
-		d = nuevoDecodificador()
-		s.decs[src] = d
-	}
 	_, hijos := Arbol(src, append(s.miembrosGo(), src))
-	fr := decodificar(d, mu)
 	s.mu.Unlock()
-	select {
-	case f <- fr:
-	default:
-	}
+	f.Llego(mu)
 	for _, h := range hijos[s.n.Clave()] {
 		if h != de {
 			s.n.Red.EnviarVoz(h, b)
@@ -259,30 +249,14 @@ func (s *Sala) alCuadro(de string, b []byte) {
 	}
 }
 
-// colchon: how many 20 ms frames may wait for the speaker (40 ms). Two devices' clocks never run exactly alike and the
-// network delivers in bursts: without a ceiling the wait grows and stays (it was up to the whole 200 ms queue). Criterion,
-// not a measurement: the smallest cushion that rides out one late packet.
-const colchon = 2
-
-// tomar plays the next frame of one member, first dropping what is older than the cushion; nil when nothing came.
-func tomar(f chan []int16) []int16 {
-	for len(f) > colchon {
-		<-f
-	}
-	select {
-	case fr := <-f:
-		return fr
-	default:
-		return nil
-	}
-}
-
 // mezclar adds one 20 ms frame of every member who sent one.
 func (s *Sala) mezclar(out []int16) {
 	s.mu.Lock()
-	var fuentes []chan []int16
+	var fuentes []*Fuente
 	for _, c := range s.pcs {
-		fuentes = append(fuentes, c.sonido)
+		if c.sonido != nil {
+			fuentes = append(fuentes, c.sonido)
+		}
 	}
 	for _, f := range s.fuentes {
 		fuentes = append(fuentes, f)
@@ -290,13 +264,13 @@ func (s *Sala) mezclar(out []int16) {
 	s.mu.Unlock()
 	acc := make([]int32, len(out))
 	for _, f := range fuentes {
-		fr := tomar(f)
+		fr := f.Siguiente()
 		for i := 0; i < len(fr) && i < len(acc); i++ {
 			acc[i] += int32(fr[i])
 		}
 	}
 	for i, v := range acc {
-		out[i] = int16(max(-32768, min(32767, v)))
+		out[i] = limitar(float64(v))
 	}
 }
 
@@ -305,26 +279,20 @@ func (s *Sala) nuevaConexion(peer string) (*conexion, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &conexion{pc: pc, sonido: make(chan []int16, 10)}
+	c := &conexion{pc: pc, sonido: nuevaFuente()}
 	pc.OnTrack(func(t *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
 		if t.Kind() == webrtc.RTPCodecTypeVideo {
 			go s.pantalla.recibirVideo(peer, pc, t)
 			return
 		}
 		go func() {
-			d := nuevoDecodificador()
 			for {
 				p, _, err := t.ReadRTP()
 				if err != nil {
 					return
 				}
-				fr := decodificar(d, p.Payload)
-				if fr == nil {
-					continue
-				}
-				select {
-				case c.sonido <- fr:
-				default: // more than 200 ms behind: drop rather than pile up delay
+				if len(p.Payload) > 0 {
+					c.sonido.Llego(p.Payload)
 				}
 			}
 		}()
@@ -387,7 +355,7 @@ func (s *Sala) ofrecer(peer string) {
 		return
 	}
 	canal := s.canal
-	s.pcs[peer] = &conexion{sonido: make(chan []int16, 10)} // reserved before any wait
+	s.pcs[peer] = &conexion{sonido: nuevaFuente()} // reserved before any wait
 	s.mu.Unlock()
 	c, err := s.nuevaConexion(peer)
 	if err != nil {
@@ -423,7 +391,7 @@ func (s *Sala) responder(peer, sdp string, me string) {
 		return
 	}
 	canal := s.canal
-	s.pcs[peer] = &conexion{sonido: make(chan []int16, 10)}
+	s.pcs[peer] = &conexion{sonido: nuevaFuente()}
 	s.mu.Unlock()
 	c, err := s.nuevaConexion(peer)
 	if err != nil {
