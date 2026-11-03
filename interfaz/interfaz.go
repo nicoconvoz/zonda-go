@@ -161,8 +161,11 @@ func (a *App) Correr() error {
 
 func (a *App) dibujar(gtx layout.Context) {
 	paint.Fill(gtx.Ops, fondo)
-	if a.vista == pSala && a.pantallaCompleta(gtx) {
+	// The clicks are read before drawing: a Gio button drawn first consumes its own clicks.
+	if a.vista == pSala && a.pantallaGrande != "" {
 		a.clicsPantallas(gtx)
+	}
+	if a.vista == pSala && a.pantallaCompleta(gtx) {
 		return
 	}
 	switch a.vista {
