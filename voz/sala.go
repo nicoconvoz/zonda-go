@@ -156,8 +156,11 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 // Medidas: the voice's live counters, for the room.
 func (s *Sala) Medidas() string { return Medidas.Texto() }
 
+// Guardar writes the recording so far (on leaving the channel and on closing the window).
+func (s *Sala) Guardar() { volcar(filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo", "grabaciones")) }
+
 func (s *Sala) Salir() {
-	volcar(filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo", "grabaciones"))
+	s.Guardar()
 	s.pantalla.parar()
 	s.mu.Lock()
 	canal, pcs, mic, parlante := s.canal, s.pcs, s.mic, s.parlante
@@ -189,10 +192,12 @@ func (s *Sala) alMicrofono(pcm []int16) {
 	s.seq++
 	seq, miembros := s.seq, s.miembrosGo()
 	s.mu.Unlock()
+	if pista != nil {
+		anotar("microfono-crudo", pcm)
+	}
 	if !on || pista == nil || enc == nil || len(pcm) != Muestras {
 		return
 	}
-	anotar("microfono-crudo", pcm)
 	comp.Limpiar(pcm)
 	anotar("microfono-enviado", pcm)
 	buf := make([]byte, 1500)

@@ -29,9 +29,11 @@ func main() {
 		n.CrearCuenta(a, "m", nil)
 	}
 	go n.Correr()
-	ui := interfaz.Nueva(n, voz.NuevaSala(n))
+	sala := voz.NuevaSala(n)
+	ui := interfaz.Nueva(n, sala)
 	go func() {
 		err := ui.Correr()
+		sala.Guardar()
 		n.Consultar(n.Chau)
 		alm.Guardar()
 		if err != nil {

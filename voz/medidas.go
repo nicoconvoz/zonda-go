@@ -90,8 +90,12 @@ func volcar(dir string) {
 	pistas := cinta.pistas
 	cinta.pistas = map[string][]int16{}
 	cinta.mu.Unlock()
+	if len(pistas) == 0 {
+		return
+	}
 	os.MkdirAll(dir, 0o755)
 	marca := time.Now().Format("150405")
+	os.WriteFile(filepath.Join(dir, marca+"-contadores.txt"), []byte(Medidas.Texto()+"\n"), 0o644)
 	for nombre, pcm := range pistas {
 		f, err := os.Create(filepath.Join(dir, marca+"-"+nombre+".wav"))
 		if err != nil {
