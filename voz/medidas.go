@@ -59,16 +59,16 @@ func (m *medidas) Texto() string {
 		m.recibidos.Load(), m.tirados.Load(), m.acortados.Load(), m.ocultados.Load(), m.vaiven(), m.parlanteSeco.Load(), m.parlanteAtrasado.Load(), m.micAtrasado.Load(), m.micPerdido.Load())
 }
 
-/* ---------- recording (ZONDAGO_GRABAR=1) ---------- */
+/* ---------- recording (only with ZONDAGO_GRABAR=1) ---------- */
 
 type grabacion struct {
 	mu     sync.Mutex
 	pistas map[string]*pista
 }
 
-// Always on in this experiment (ZONDAGO_GRABAR=0 turns it off): every call leaves its last minute measured, with no
-// command to type. The files stay on this computer.
-var grabar = os.Getenv("ZONDAGO_GRABAR") != "0"
+// Off unless ZONDAGO_GRABAR=1: it was for studying the sound while it was being fixed. When on, every call leaves its
+// last minute as WAV files on this computer.
+var grabar = os.Getenv("ZONDAGO_GRABAR") == "1"
 var cinta = &grabacion{pistas: map[string]*pista{}}
 
 // muestrasCinta: one minute at 48 kHz, 5.5 MB a track, allocated once.
