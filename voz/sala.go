@@ -216,6 +216,24 @@ func (s *Sala) alCuadro(de string, b []byte) {
 	}
 }
 
+// colchon: how many 20 ms frames may wait for the speaker (40 ms). Two devices' clocks never run exactly alike and the
+// network delivers in bursts: without a ceiling the wait grows and stays (it was up to the whole 200 ms queue). Criterion,
+// not a measurement: the smallest cushion that rides out one late packet.
+const colchon = 2
+
+// tomar plays the next frame of one member, first dropping what is older than the cushion; nil when nothing came.
+func tomar(f chan []int16) []int16 {
+	for len(f) > colchon {
+		<-f
+	}
+	select {
+	case fr := <-f:
+		return fr
+	default:
+		return nil
+	}
+}
+
 // mezclar adds one 20 ms frame of every member who sent one.
 func (s *Sala) mezclar(out []int16) {
 	s.mu.Lock()
@@ -229,12 +247,9 @@ func (s *Sala) mezclar(out []int16) {
 	s.mu.Unlock()
 	acc := make([]int32, len(out))
 	for _, f := range fuentes {
-		select {
-		case fr := <-f:
-			for i := 0; i < len(fr) && i < len(acc); i++ {
-				acc[i] += int32(fr[i])
-			}
-		default:
+		fr := tomar(f)
+		for i := 0; i < len(fr) && i < len(acc); i++ {
+			acc[i] += int32(fr[i])
 		}
 	}
 	for i, v := range acc {

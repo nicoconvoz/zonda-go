@@ -26,3 +26,18 @@ func abs16(s int16) int16 {
 	}
 	return s
 }
+
+// A backlog never stays: with more than the cushion waiting, the old frames go and the newest one plays.
+func TestBacklogDrainsToTheCushion(t *testing.T) {
+	f := make(chan []int16, 10)
+	for i := 0; i < 10; i++ {
+		f <- []int16{int16(i)}
+	}
+	fr := tomar(f)
+	if fr == nil || fr[0] != 10-colchon || len(f) != colchon-1 {
+		t.Fatalf("tocó %v y quedaron %d en la fila", fr, len(f))
+	}
+	if tomar(make(chan []int16, 10)) != nil {
+		t.Fatal("sin nada, silencio")
+	}
+}
