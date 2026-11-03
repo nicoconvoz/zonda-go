@@ -369,13 +369,7 @@ func (a *App) chats(gtx layout.Context) layout.Dimensions {
 			return a.filaPersona(gtx, a.clic("chat:"+k), k, ult)
 		})
 	}
-	return columna(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(8), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return fila(gtx, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.cuadrado(gtx, a.clic("sub:chat"), "chat", true) }))
-			})
-		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return a.listado(gtx, &a.principal, items) }))
+	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.listado(gtx, &a.principal, items) })
 }
 
 // filaPersona: a person's row (the card color of their gender, their icon, name and a line under it).
