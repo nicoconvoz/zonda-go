@@ -9,8 +9,8 @@ import (
 	"unsafe"
 )
 
-// The microphone and the speaker through winmm (waveIn / waveOut), pure Go: 8 kHz mono 16-bit, the rate G.711
-// carries, in 20 ms frames. Windows resamples from and to the device. The wait for each buffer is an event the
+// The microphone and the speaker through winmm (waveIn / waveOut), pure Go: 48 kHz mono 16-bit, the rate Opus
+// carries in WebRTC, in 20 ms frames. Windows resamples from and to the device. The wait for each buffer is an event the
 // driver signals (CALLBACK_EVENT): no polling loop.
 
 var (
@@ -39,7 +39,7 @@ const (
 	waveMapper    = 0xFFFFFFFF
 	callbackEvent = 0x00050000
 	whdrDone      = 1
-	Muestras      = 160 // 20 ms at 8 kHz
+	Muestras      = 960 // 20 ms at 48 kHz
 	nBuffers      = 6
 )
 
@@ -64,7 +64,7 @@ type waveHdr struct {
 	Reserved      uintptr
 }
 
-var formato = waveFormat{FormatTag: 1, Channels: 1, SamplesPerSec: 8000, AvgBytesPerSec: 16000, BlockAlign: 2, BitsPerSample: 16}
+var formato = waveFormat{FormatTag: 1, Channels: 1, SamplesPerSec: 48000, AvgBytesPerSec: 96000, BlockAlign: 2, BitsPerSample: 16}
 
 type dispositivo struct {
 	h      uintptr

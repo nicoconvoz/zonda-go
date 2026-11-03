@@ -1,6 +1,6 @@
-// Package voz is the room's voice in pure Go: winmm for the microphone and speaker, G.711 µ-law (PCMU) as the codec
-// (every WebRTC stack speaks it, so the Flutter app hears it with no change), and pion for the connections, with the
-// same "v-…" signals as the app's voice room.
+// Package voz is the room's voice in pure Go: winmm for the microphone and speaker, Opus as the codec (go-opus, the
+// codec of the app and of every browser), a noise gate on the microphone, and pion for the connections, with the
+// same "v-…" signals as the app's voice room. G.711 µ-law stays here for a peer that offers nothing else.
 package voz
 
 // Mu-law encoding and decoding (ITU-T G.711).

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
+	"github.com/tphakala/go-opus/opus"
 
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
@@ -27,6 +28,9 @@ type Sala struct {
 	api      *webrtc.API
 
 	pantalla *pantalla
+	enc      *opus.Encoder
+	comp     *Compuerta
+	decs     map[string]*opus.Decoder // the tree's speakers
 
 	// The Go devices in the channel: their voice goes by the relay tree over the data links (arbol.go).
 	goPares map[string]bool
@@ -44,13 +48,37 @@ type conexion struct {
 	segunda   bool
 }
 
+// opusVoz: Opus at 48 kHz as WebRTC names it (always "/2" in the SDP, mono content), with in-band FEC.
+var opusVoz = webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2, SDPFmtpLine: "minptime=10;useinbandfec=1"}
+
+// Bitrate of the voice: about 40 kbps on the wire with RTP and UDP, the Captain's figure for the relay tree.
+const bitrateVoz = 32000
+
+func nuevoDecodificador() *opus.Decoder {
+	d, _ := opus.NewDecoder(48000, 1)
+	return d
+}
+
+// decodificar turns one Opus packet into 48 kHz mono samples (nil when it cannot be read).
+func decodificar(d *opus.Decoder, pkt []byte) []int16 {
+	if d == nil {
+		return nil
+	}
+	out := make([]int16, 5760) // up to 120 ms, the longest Opus packet
+	n, err := d.Decode(pkt, out)
+	if err != nil || n <= 0 {
+		return nil
+	}
+	return out[:n]
+}
+
 const maxPares = 12
 
 func NuevaSala(n *nucleo.Nodo) *Sala {
 	m := &webrtc.MediaEngine{}
-	// Only PCMU for the voice: Opus would be chosen first and there is no Opus encoder in pure Go. Video codecs are
-	// registered to receive a screen shared from the app (its renegotiation must not fail).
-	m.RegisterCodec(webrtc.RTPCodecParameters{RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMU, ClockRate: 8000, Channels: 1}, PayloadType: 0}, webrtc.RTPCodecTypeAudio)
+	// Opus for the voice, the codec the app and every browser use (pure Go: go-opus, a port of libopus). Video codecs
+	// are registered to receive a screen shared from the app (its renegotiation must not fail).
+	m.RegisterCodec(webrtc.RTPCodecParameters{RTPCodecCapability: opusVoz, PayloadType: 111}, webrtc.RTPCodecTypeAudio)
 	m.RegisterCodec(webrtc.RTPCodecParameters{RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeVP8, ClockRate: 90000}, PayloadType: 96}, webrtc.RTPCodecTypeVideo)
 	s := &Sala{n: n, pcs: map[string]*conexion{}, api: webrtc.NewAPI(webrtc.WithMediaEngine(m)), goPares: map[string]bool{}, fuentes: map[string]chan []int16{}, vistos: map[string]map[uint32]bool{}}
 	n.Red.OnVoz = s.alCuadro
@@ -96,7 +124,11 @@ func (s *Sala) Conectados() int {
 // Entrar opens the channel's audio (listening; the microphone is latched with Hablar) and greets its members.
 func (s *Sala) Entrar(canal string, miembros []string) error {
 	s.Salir()
-	pista, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMU, ClockRate: 8000, Channels: 1}, "audio", "zonda")
+	pista, err := webrtc.NewTrackLocalStaticSample(opusVoz, "audio", "zonda")
+	if err != nil {
+		return err
+	}
+	enc, err := opus.NewEncoder(opus.EncoderConfig{SampleRate: 48000, Channels: 1, Bitrate: bitrateVoz, ConstrainedVBR: true, Complexity: 5})
 	if err != nil {
 		return err
 	}
@@ -111,6 +143,7 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 	}
 	s.mu.Lock()
 	s.canal, s.pista, s.mic, s.parlante, s.hablando = canal, pista, mic, parlante, false
+	s.enc, s.comp, s.decs = enc, NuevaCompuerta(), map[string]*opus.Decoder{}
 	s.goPares, s.fuentes, s.vistos = map[string]bool{}, map[string]chan []int16{}, map[string]map[uint32]bool{}
 	s.mu.Unlock()
 	for _, k := range miembros {
@@ -147,14 +180,20 @@ func (s *Sala) Salir() {
 
 func (s *Sala) alMicrofono(pcm []int16) {
 	s.mu.Lock()
-	on, pista, canal := s.hablando, s.pista, s.canal
+	on, pista, canal, enc, comp := s.hablando, s.pista, s.canal, s.enc, s.comp
 	s.seq++
 	seq, miembros := s.seq, s.miembrosGo()
 	s.mu.Unlock()
-	if !on || pista == nil {
+	if !on || pista == nil || enc == nil || len(pcm) != Muestras {
 		return
 	}
-	mu := CodificarMu(pcm)
+	comp.Limpiar(pcm)
+	buf := make([]byte, 1500)
+	n, err := enc.Encode(pcm, buf)
+	if err != nil || n <= 0 {
+		return
+	}
+	mu := buf[:n]
 	pista.WriteSample(media.Sample{Data: mu, Duration: 20 * time.Millisecond})
 	if len(miembros) > 1 {
 		me := s.n.Clave()
@@ -201,10 +240,14 @@ func (s *Sala) alCuadro(de string, b []byte) {
 		f = make(chan []int16, 10)
 		s.fuentes[src] = f
 	}
+	d := s.decs[src]
+	if d == nil {
+		d = nuevoDecodificador()
+		s.decs[src] = d
+	}
 	_, hijos := Arbol(src, append(s.miembrosGo(), src))
+	fr := decodificar(d, mu)
 	s.mu.Unlock()
-	fr := make([]int16, len(mu))
-	DecodificarMu(mu, fr)
 	select {
 	case f <- fr:
 	default:
@@ -269,16 +312,16 @@ func (s *Sala) nuevaConexion(peer string) (*conexion, error) {
 			return
 		}
 		go func() {
+			d := nuevoDecodificador()
 			for {
 				p, _, err := t.ReadRTP()
 				if err != nil {
 					return
 				}
-				if t.Codec().MimeType != webrtc.MimeTypePCMU {
+				fr := decodificar(d, p.Payload)
+				if fr == nil {
 					continue
 				}
-				fr := make([]int16, len(p.Payload))
-				DecodificarMu(p.Payload, fr)
 				select {
 				case c.sonido <- fr:
 				default: // more than 200 ms behind: drop rather than pile up delay

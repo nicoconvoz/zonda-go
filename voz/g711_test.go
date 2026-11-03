@@ -1,6 +1,9 @@
 package voz
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestMuLawRoundTripStaysClose(t *testing.T) {
 	// Known points of the table: silence, and the extremes.
@@ -39,5 +42,31 @@ func TestBacklogDrainsToTheCushion(t *testing.T) {
 	}
 	if tomar(make(chan []int16, 10)) != nil {
 		t.Fatal("sin nada, silencio")
+	}
+}
+
+func tono(n int, amp float64) []int16 {
+	out := make([]int16, n)
+	for i := range out {
+		out[i] = int16(amp * math.Sin(float64(i)*0.2))
+	}
+	return out
+}
+
+// Hiss alone is faded to near silence; a voice well above it passes whole.
+func TestGateDropsHissKeepsVoice(t *testing.T) {
+	c := NuevaCompuerta()
+	for i := 0; i < 100; i++ {
+		c.Limpiar(tono(Muestras, 80)) // a second of room hiss
+	}
+	h := tono(Muestras, 80)
+	c.Limpiar(h)
+	if rms(h) > 5 {
+		t.Fatalf("el siseo pasa: rms %.1f", rms(h))
+	}
+	v := tono(Muestras, 3000)
+	c.Limpiar(v)
+	if rms(v) < 3000*0.7*0.95 {
+		t.Fatalf("la voz se cortó: rms %.1f", rms(v))
 	}
 }
