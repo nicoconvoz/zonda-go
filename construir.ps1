@@ -4,8 +4,9 @@ Set-Location $PSScriptRoot
 New-Item -ItemType Directory -Force dist | Out-Null
 # A running program cannot be overwritten, but it can be renamed: the open window keeps working and the next start
 # opens the new build.
-Remove-Item dist\zondago.viejo.exe -ErrorAction SilentlyContinue
-if (Test-Path dist\zondago.exe) { Rename-Item dist\zondago.exe zondago.viejo.exe }
+# Old builds still open cannot be deleted either, so each one gets its own name and goes when it is closed.
+Get-ChildItem dist\zondago.viejo*.exe -ErrorAction SilentlyContinue | Remove-Item -ErrorAction SilentlyContinue
+if (Test-Path dist\zondago.exe) { Rename-Item dist\zondago.exe ("zondago.viejo-{0}.exe" -f (Get-Date -Format yyyyMMddHHmmss)) }
 go build -ldflags "-H windowsgui -s -w" -o dist\zondago.exe .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # Only the libraries that changed are copied: one the open window has loaded cannot be overwritten.
