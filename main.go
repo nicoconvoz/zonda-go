@@ -24,6 +24,10 @@ func main() {
 		log.Fatal(err)
 	}
 	n := nucleo.NuevoNodo(alm)
+	// For trying several devices on one computer: ZONDAGO_APODO makes the account with no clicks.
+	if a := os.Getenv("ZONDAGO_APODO"); a != "" && !n.TieneCuenta() {
+		n.CrearCuenta(a, "m", nil)
+	}
 	go n.Correr()
 	ui := interfaz.Nueva(n, voz.NuevaSala(n))
 	go func() {
