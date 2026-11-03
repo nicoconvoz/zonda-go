@@ -10,11 +10,11 @@ import (
 /* ---------- what one device knows about one room (RoomBook) ---------- */
 
 type Libro struct {
-	Carta     Carta
-	admis     map[string]Admision
-	rotacion  *Rotacion
-	canales   *Canales
-	Cerrada   bool
+	Carta    Carta
+	admis    map[string]Admision
+	rotacion *Rotacion
+	canales  *Canales
+	Cerrada  bool
 }
 
 func nuevoLibro(c Carta) *Libro { return &Libro{Carta: c, admis: map[string]Admision{}} }
@@ -50,8 +50,8 @@ func (b *Libro) agregarLinea(l string) bool {
 	return false
 }
 
-func (b *Libro) ID() string      { return b.Carta.ID }
-func (b *Libro) Nombre() string  { return b.Carta.Name }
+func (b *Libro) ID() string     { return b.Carta.ID }
+func (b *Libro) Nombre() string { return b.Carta.Name }
 func (b *Libro) Epoca() int64 {
 	if b.rotacion == nil {
 		return 0
@@ -59,7 +59,7 @@ func (b *Libro) Epoca() int64 {
 	return b.rotacion.Epoch
 }
 func (b *Libro) EsCreador(k string) bool { return k == b.Carta.Creator }
-func (b *Libro) Baneado(k string) bool  { return b.rotacion != nil && b.rotacion.Banned[k] }
+func (b *Libro) Baneado(k string) bool   { return b.rotacion != nil && b.rotacion.Banned[k] }
 
 func (b *Libro) Canales() []string {
 	if b.canales == nil {
@@ -196,7 +196,12 @@ func (s *Salas) Mias() []*Libro {
 			out = append(out, b)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Carta.T > out[j].Carta.T })
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Carta.T != out[j].Carta.T {
+			return out[i].Carta.T > out[j].Carta.T
+		}
+		return out[i].ID() < out[j].ID()
+	})
 	return out
 }
 
@@ -647,7 +652,7 @@ func lineaDe(r Msg) LineaSala {
 
 // Archivo to attach to a room line or a chat.
 type Archivo struct {
-	Bytes             []byte
+	Bytes              []byte
 	Nombre, Mime, Tipo string // Tipo: file | voice | sticker
 }
 
@@ -784,13 +789,22 @@ func (n *Nodo) MiembrosSala(room string) []Miembro {
 		en := k == n.Clave() || (n.presente(k) && n.personas[k] != nil && n.personas[k].Sala == room)
 		out = append(out, Miembro{Clave: k, Nombre: n.NombreDe(k), Genero: n.GeneroDe(k), Foto: n.FotoDe(k), EnLinea: en, Creador: b.EsCreador(k)})
 	}
+	ordenarMiembros(out)
+	return out
+}
+
+// ordenarMiembros: online first, then by name, and by key when two names are equal. The list is built from a map,
+// whose order changes every time: without a total order, two people with the same nickname swap places on each redraw.
+func ordenarMiembros(out []Miembro) {
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].EnLinea != out[j].EnLinea {
 			return out[i].EnLinea
 		}
-		return strings.ToLower(out[i].Nombre) < strings.ToLower(out[j].Nombre)
+		if a, b := strings.ToLower(out[i].Nombre), strings.ToLower(out[j].Nombre); a != b {
+			return a < b
+		}
+		return out[i].Clave < out[j].Clave
 	})
-	return out
 }
 
 // EnSala: the members present in room now (keys), me excluded.

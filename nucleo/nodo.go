@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 )
@@ -35,17 +34,17 @@ type Nodo struct {
 	ops      chan func()
 	OnCambio func()
 
-	personas    map[string]*Persona
-	via         map[string]string
-	beaconAt    map[string]int64
-	confiables  map[string]bool
-	dispositivos map[string]string
-	helloDicho  string
-	tarjetaCache *Tarjeta
-	cardSentTo  map[string]int64
-	sigVisto    map[string]bool
+	personas       map[string]*Persona
+	via            map[string]string
+	beaconAt       map[string]int64
+	confiables     map[string]bool
+	dispositivos   map[string]string
+	helloDicho     string
+	tarjetaCache   *Tarjeta
+	cardSentTo     map[string]int64
+	sigVisto       map[string]bool
 	fotoRespondida map[string]int64
-	fotoEspera  map[string]map[string]bool
+	fotoEspera     map[string]map[string]bool
 
 	// SalaActual is the room on screen (its id); its lines live in LineasSala while inside.
 	SalaActual string
@@ -487,7 +486,7 @@ func (n *Nodo) GeneroDe(key string) string {
 // Miembro of a room's list.
 type Miembro struct {
 	Clave, Nombre, Genero, Foto string
-	EnLinea, Creador           bool
+	EnLinea, Creador            bool
 }
 
 /* ---------- sealed signals (SG2) ---------- */
@@ -708,6 +707,6 @@ func (n *Nodo) Gente() []Miembro {
 			out = append(out, Miembro{Clave: k, Nombre: n.NombreDe(k), Genero: p.Tarjeta.Gender, Foto: p.Tarjeta.Photo, EnLinea: true})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Nombre) < strings.ToLower(out[j].Nombre) })
+	ordenarMiembros(out)
 	return out
 }
