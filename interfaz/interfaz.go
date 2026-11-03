@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/font"
 	"gioui.org/font/gofont"
 	"gioui.org/io/clipboard"
 	"gioui.org/layout"
@@ -66,21 +67,21 @@ type App struct {
 	chat  string // the contact on screen
 
 	// widgets
-	nick, salaNombre, codigo, buscar, mensaje, canales widget.Editor
-	hombre, mujer, elegirFoto, entrar                widget.Clickable
-	tabs                                             [3]widget.Clickable
-	gotching, wenas                                  widget.Clickable
-	crear, golpear, cancelarGolpe, buscarBtn         widget.Clickable
+	nick, salaNombre, codigo, buscar, mensaje, canales   widget.Editor
+	hombre, mujer, elegirFoto, entrar                    widget.Clickable
+	tabs                                                 [4]widget.Clickable
+	gotching, wenas                                      widget.Clickable
+	crear, golpear, cancelarGolpe, buscarBtn             widget.Clickable
 	volver, copiar, cerrarSala, enviar, adjFoto, archivo widget.Clickable
-	hablar, salirVoz, compartir, fijarCanales        widget.Clickable
-	lista, miembros, principal                       widget.List
-	clicks                                           map[string]*widget.Clickable
+	hablar, salirVoz, compartir, fijarCanales            widget.Clickable
+	lista, miembros, principal                           widget.List
+	clicks                                               map[string]*widget.Clickable
 
-	genero    string
-	fotoAlta  []byte
-	imagenes  map[string]paint.ImageOp
-	aviso     string
-	avisoVoz  string
+	genero         string
+	fotoAlta       []byte
+	imagenes       map[string]paint.ImageOp
+	aviso          string
+	avisoVoz       string
 	pantallaGrande string
 }
 
@@ -90,8 +91,8 @@ func Nueva(n *nucleo.Nodo, voz Voz) *App {
 	a.W.Option(app.Title("Zonda"), app.Size(unit.Dp(1100), unit.Dp(760)), app.MinSize(unit.Dp(420), unit.Dp(500)))
 	a.expl = explorer.NewExplorer(a.W)
 	a.th = material.NewTheme()
-	a.th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
-	a.th.Palette = material.Palette{Bg: fondo, Fg: tinta, ContrastBg: acento, ContrastFg: color.NRGBA{0xff, 0xff, 0xff, 0xff}}
+	a.th.Shaper = text.NewShaper(text.WithCollection(append(coleccionFuentes(), gofont.Collection()...)))
+	a.aplicarPiel(n.Alm.Leer("piel"))
 	for _, e := range []*widget.Editor{&a.nick, &a.salaNombre, &a.codigo, &a.buscar, &a.canales} {
 		e.SingleLine, e.Submit = true, true
 	}
@@ -105,15 +106,23 @@ func Nueva(n *nucleo.Nodo, voz Voz) *App {
 	return a
 }
 
-// Muted colors of the Mendoza wind: dry earth, poplars, the mountain's blue.
+// The colors of the skin in use (aplicarPiel): every piece of the screen takes them from here.
 var (
-	fondo  = color.NRGBA{0xf4, 0xf0, 0xe8, 0xff}
-	panel  = color.NRGBA{0xe7, 0xe0, 0xd2, 0xff}
-	tinta  = color.NRGBA{0x2e, 0x33, 0x36, 0xff}
-	gris   = color.NRGBA{0x7a, 0x7d, 0x7a, 0xff}
-	acento = color.NRGBA{0x4d, 0x6b, 0x7a, 0xff}
-	verde  = color.NRGBA{0x5f, 0x8a, 0x4e, 0xff}
+	piel   = pieles[0]
+	fondo  color.NRGBA
+	panel  color.NRGBA
+	tinta  color.NRGBA
+	gris   color.NRGBA
+	acento color.NRGBA
+	verde  = hx(0xFF2FBF4A)
 )
+
+func (a *App) aplicarPiel(id string) {
+	piel = pielDe(id)
+	fondo, panel, tinta, gris, acento = piel.AppBg, piel.Surface2, piel.Ink, piel.Muted, piel.On
+	a.th.Palette = material.Palette{Bg: piel.Surface, Fg: piel.Ink, ContrastBg: piel.On, ContrastFg: piel.OnInk}
+	a.th.Face = piel.Fuente
+}
 
 func (a *App) clic(id string) *widget.Clickable {
 	c := a.clicks[id]
@@ -158,8 +167,8 @@ func (a *App) dibujar(gtx layout.Context) {
 /* ---------- small pieces ---------- */
 
 func (a *App) titulo(gtx layout.Context, s string) layout.Dimensions {
-	l := material.H6(a.th, s)
-	l.Color = tinta
+	l := material.Label(a.th, unit.Sp(17), s)
+	l.Color, l.Font.Weight = tinta, font.ExtraBold
 	return l.Layout(gtx)
 }
 
@@ -175,33 +184,106 @@ func (a *App) chico(gtx layout.Context, s string) layout.Dimensions {
 	return l.Layout(gtx)
 }
 
+// boton: the skin's filled button (its "on" color), bold label, small corners.
 func (a *App) boton(gtx layout.Context, c *widget.Clickable, s string) layout.Dimensions {
-	return material.Button(a.th, c, s).Layout(gtx)
+	return a.botonDe(gtx, c, "", s, piel.On, piel.OnInk, nil)
 }
 
+// botonSuave: the skin's idle button, outlined.
 func (a *App) botonSuave(gtx layout.Context, c *widget.Clickable, s string) layout.Dimensions {
-	b := material.Button(a.th, c, s)
-	b.Background, b.Color = panel, tinta
-	return b.Layout(gtx)
+	l := piel.BtnLine
+	return a.botonDe(gtx, c, "", s, piel.Btn, piel.BtnInk, &l)
 }
 
-func (a *App) campo(gtx layout.Context, e *widget.Editor, hint string) layout.Dimensions {
-	return caja(gtx, panel, func(gtx layout.Context) layout.Dimensions {
-		return layout.UniformInset(unit.Dp(8)).Layout(gtx, material.Editor(a.th, e, hint).Layout)
+func (a *App) botonIcono(gtx layout.Context, c *widget.Clickable, ic, s string, lleno bool) layout.Dimensions {
+	if lleno {
+		return a.botonDe(gtx, c, ic, s, piel.On, piel.OnInk, nil)
+	}
+	l := piel.BtnLine
+	return a.botonDe(gtx, c, ic, s, piel.Btn, piel.BtnInk, &l)
+}
+
+func (a *App) botonDe(gtx layout.Context, c *widget.Clickable, ic, s string, bg, ink color.NRGBA, linea *color.NRGBA) layout.Dimensions {
+	return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		m := op.Record(gtx.Ops)
+		d := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			var hijos []layout.FlexChild
+			if ic != "" {
+				hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono(gtx, ic, 18, ink) }))
+				if s != "" {
+					hijos = append(hijos, sep(6))
+				}
+			}
+			if s != "" {
+				hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(a.th, unit.Sp(14.5), s)
+					l.Color, l.Font.Weight, l.MaxLines = ink, font.Bold, 1
+					return l.Layout(gtx)
+				}))
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, hijos...)
+		})
+		call := m.Stop()
+		fill := bg
+		if c.Hovered() {
+			fill = mezcla(bg, ink, 0.08)
+		}
+		rr := clip.UniformRRect(image.Rectangle{Max: d.Size}, gtx.Dp(unit.Dp(piel.RadioChico)))
+		paint.FillShape(gtx.Ops, fill, rr.Op(gtx.Ops))
+		if linea != nil {
+			paint.FillShape(gtx.Ops, *linea, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
+		}
+		call.Add(gtx.Ops)
+		return d
 	})
 }
 
-func caja(gtx layout.Context, c color.NRGBA, w layout.Widget) layout.Dimensions {
+func mezcla(a, b color.NRGBA, t float32) color.NRGBA {
+	m := func(x, y uint8) uint8 { return uint8(float32(x)*(1-t) + float32(y)*t) }
+	return color.NRGBA{m(a.R, b.R), m(a.G, b.G), m(a.B, b.B), a.A}
+}
+
+func (a *App) campo(gtx layout.Context, e *widget.Editor, hint string) layout.Dimensions {
 	m := op.Record(gtx.Ops)
-	d := w(gtx)
+	d := layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		ed := material.Editor(a.th, e, hint)
+		ed.Color, ed.HintColor, ed.SelectionColor = piel.Ink, piel.Muted, mezcla(piel.Surface, piel.On, .35)
+		return ed.Layout(gtx)
+	})
 	call := m.Stop()
-	r := clip.UniformRRect(image.Rectangle{Max: d.Size}, gtx.Dp(6))
-	paint.FillShape(gtx.Ops, c, r.Op(gtx.Ops))
+	rr := clip.UniformRRect(image.Rectangle{Max: d.Size}, gtx.Dp(unit.Dp(piel.RadioChico)))
+	paint.FillShape(gtx.Ops, piel.Surface, rr.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, piel.Line, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
 	call.Add(gtx.Ops)
 	return d
 }
 
-func sep(dp float32) layout.FlexChild { return layout.Rigid(layout.Spacer{Width: unit.Dp(dp), Height: unit.Dp(dp)}.Layout) }
+// caja: a card of the skin: its color, corners, border and drop shadow, under its content.
+func caja(gtx layout.Context, c color.NRGBA, w layout.Widget) layout.Dimensions {
+	m := op.Record(gtx.Ops)
+	d := w(gtx)
+	call := m.Stop()
+	r := gtx.Dp(unit.Dp(piel.Radio))
+	tarjeta := c == panel || c == piel.Surface
+	if tarjeta {
+		c = piel.Surface
+		sh := op.Offset(image.Pt(0, gtx.Dp(unit.Dp(piel.SombraDY)))).Push(gtx.Ops)
+		paint.FillShape(gtx.Ops, piel.Sombra, clip.UniformRRect(image.Rectangle{Max: d.Size}, r).Op(gtx.Ops))
+		sh.Pop()
+	}
+	rr := clip.UniformRRect(image.Rectangle{Max: d.Size}, r)
+	paint.FillShape(gtx.Ops, c, rr.Op(gtx.Ops))
+	if piel.Borde != nil && tarjeta {
+		paint.FillShape(gtx.Ops, *piel.Borde, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
+	}
+	call.Add(gtx.Ops)
+	return d
+}
+
+func sep(dp float32) layout.FlexChild {
+	return layout.Rigid(layout.Spacer{Width: unit.Dp(dp), Height: unit.Dp(dp)}.Layout)
+}
 
 func fila(gtx layout.Context, hijos ...layout.FlexChild) layout.Dimensions {
 	return layout.Flex{Alignment: layout.Middle}.Layout(gtx, hijos...)
@@ -260,14 +342,14 @@ func (a *App) avatar(gtx layout.Context, key, nombre string, dp float32) layout.
 		}
 		a.n.PedirFoto(h, key)
 	}
-	paint.Fill(gtx.Ops, acento)
+	paint.Fill(gtx.Ops, piel.Dark)
 	ini := "?"
 	if nombre != "" {
 		ini = strings.ToUpper(string([]rune(nombre)[:1]))
 	}
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		l := material.Body1(a.th, ini)
-		l.Color = color.NRGBA{0xff, 0xff, 0xff, 0xff}
+		l.Color, l.Font.Weight = piel.DarkInk, font.Bold
 		return l.Layout(gtx)
 	})
 }

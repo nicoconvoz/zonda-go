@@ -2,6 +2,9 @@ package interfaz
 
 import (
 	"fmt"
+
+	"gioui.org/font"
+	"gioui.org/op/clip"
 	"image"
 	"image/color"
 	"sort"
@@ -89,6 +92,10 @@ func (a *App) alta(gtx layout.Context) layout.Dimensions {
 
 /* ---------- the main screen: rooms, people, network ---------- */
 
+// The main screen, as in the app: a bar of the skin's color with icons (the active one in its own color), the
+// links to Gotching and Wenas on the right, and the section below.
+var secciones = []struct{ icono, nombre string }{{"salas", "Salas"}, {"usuarios", "Gente"}, {"wifi", "Red"}, {"palette", "Estilo"}}
+
 func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
 	for i := range a.tabs {
 		if a.tabs[i].Clicked(gtx) {
@@ -102,42 +109,126 @@ func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
 		abrirURL("https://wenas.app")
 	}
 	return columna(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return caja(gtx, panel, func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Min.X = gtx.Constraints.Max.X
-				return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					nombres := []string{"Salas", "Gente", "Red"}
-					var hijos []layout.FlexChild
-					for i, s := range nombres {
-						i, s := i, s
-						hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if a.tab == i {
-								return a.boton(gtx, &a.tabs[i], s)
-							}
-							return a.botonSuave(gtx, &a.tabs[i], s)
-						}), sep(6))
+		layout.Rigid(a.barra),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return margen(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(860))
+				return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					switch a.tab {
+					case 1:
+						return a.gente(gtx)
+					case 2:
+						return a.red(gtx)
+					case 3:
+						return a.estilo(gtx)
 					}
-					hijos = append(hijos, layout.Flexed(1, layout.Spacer{}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.botonSuave(gtx, &a.gotching, "Gotching") }), sep(6),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.botonSuave(gtx, &a.wenas, "Wenas") }), sep(10),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.avatar(gtx, a.n.Clave(), a.n.Nombre, 32) }), sep(6),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.texto(gtx, a.n.Nombre, tinta) }))
-					return fila(gtx, hijos...)
+					return a.salas(gtx)
 				})
 			})
 		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return margen(gtx, func(gtx layout.Context) layout.Dimensions {
-				switch a.tab {
-				case 1:
-					return a.gente(gtx)
-				case 2:
-					return a.red(gtx)
-				}
-				return a.salas(gtx)
-			})
-		}),
 	)
+}
+
+func (a *App) barra(gtx layout.Context) layout.Dimensions {
+	alto := gtx.Dp(54)
+	paint.FillShape(gtx.Ops, piel.Bar, clipRect(image.Pt(gtx.Constraints.Max.X, alto)))
+	gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = alto, alto
+	gtx.Constraints.Min.X = gtx.Constraints.Max.X
+	return layout.Inset{Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.Y = 0
+		var hijos []layout.FlexChild
+		for i, sec := range secciones {
+			i, sec := i, sec
+			hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return a.tabs[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					c := piel.BarInk
+					if a.tab == i {
+						c = piel.BarActive
+					}
+					return layout.Inset{Left: unit.Dp(10), Right: unit.Dp(10), Top: unit.Dp(6), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono(gtx, sec.icono, 22, c) }),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(a.th, unit.Sp(11), sec.nombre)
+								l.Color, l.Font.Weight = c, font.Bold
+								return l.Layout(gtx)
+							}))
+					})
+				})
+			}))
+		}
+		enlace := func(c *widget.Clickable, ic, s string) layout.FlexChild {
+			return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return fila(gtx, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono(gtx, ic, 20, piel.BarInk) }), sep(4),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(a.th, unit.Sp(13), s)
+								l.Color, l.Font.Weight = piel.BarInk, font.Bold
+								return l.Layout(gtx)
+							}))
+					})
+				})
+			})
+		}
+		hijos = append(hijos, layout.Flexed(1, layout.Spacer{}.Layout),
+			enlace(&a.gotching, "game", "Gotching"), enlace(&a.wenas, "ship", "Wenas"), sep(10),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.avatar(gtx, a.n.Clave(), a.n.Nombre, 34) }), sep(8),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(a.th, unit.Sp(14), a.n.Nombre)
+				l.Color, l.Font.Weight = piel.BarActive, font.Bold
+				return l.Layout(gtx)
+			}))
+		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return fila(gtx, hijos...)
+		})
+	})
+}
+
+// estilo: the skins, each with its four colors, as the app's skins list shows them.
+func (a *App) estilo(gtx layout.Context) layout.Dimensions {
+	for _, p := range pieles {
+		if a.clic("piel:" + p.ID).Clicked(gtx) {
+			a.aplicarPiel(p.ID)
+			a.n.Alm.Escribir("piel", p.ID)
+		}
+	}
+	items := []layout.Widget{func(gtx layout.Context) layout.Dimensions { return a.titulo(gtx, "Estilo") }}
+	for _, p := range pieles {
+		p := p
+		items = append(items, func(gtx layout.Context) layout.Dimensions {
+			return a.clic("piel:"+p.ID).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return caja(gtx, piel.Surface, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						var hijos []layout.FlexChild
+						for _, c := range p.Muestra {
+							c := c
+							hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								s := gtx.Dp(26)
+								rr := clip.UniformRRect(image.Rectangle{Max: image.Pt(s, s)}, gtx.Dp(6))
+								paint.FillShape(gtx.Ops, c, rr.Op(gtx.Ops))
+								paint.FillShape(gtx.Ops, piel.Line, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
+								return layout.Dimensions{Size: image.Pt(s, s)}
+							}), sep(4))
+						}
+						nombre := p.Nombre
+						if p.ID == piel.ID {
+							nombre += "  ✓"
+						}
+						hijos = append(hijos, sep(10), layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							return columna(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.titulo(gtx, nombre) }),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.chico(gtx, p.Origen) }))
+						}))
+						return fila(gtx, hijos...)
+					})
+				})
+			})
+		})
+	}
+	return a.listado(gtx, &a.principal, items)
 }
 
 func (a *App) salas(gtx layout.Context) layout.Dimensions {
@@ -286,7 +377,9 @@ func (a *App) gente(gtx layout.Context) layout.Dimensions {
 	for k := range n.Contactos {
 		contactos = append(contactos, k)
 	}
-	sort.Slice(contactos, func(i, j int) bool { return strings.ToLower(n.NombreDe(contactos[i])) < strings.ToLower(n.NombreDe(contactos[j])) })
+	sort.Slice(contactos, func(i, j int) bool {
+		return strings.ToLower(n.NombreDe(contactos[i])) < strings.ToLower(n.NombreDe(contactos[j]))
+	})
 	if len(contactos) == 0 {
 		items = append(items, func(gtx layout.Context) layout.Dimensions {
 			return a.chico(gtx, "Buscá a alguien por su apodo con la lupa, o conocelo en una sala.")
@@ -455,7 +548,9 @@ func (a *App) pedidos(gtx layout.Context, room string) layout.Dimensions {
 		p := p
 		hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return fila(gtx, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return a.texto(gtx, p.Nick+" pide entrar a la sala", acento) }),
+				return fila(gtx, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return a.texto(gtx, p.Nick+" pide entrar a la sala", acento)
+				}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.boton(gtx, a.clic("si:"+p.Clave), "Dejar entrar") }), sep(6),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.botonSuave(gtx, a.clic("no:"+p.Clave), "No") }))
 			})
@@ -528,10 +623,10 @@ func (a *App) listaMiembros(gtx layout.Context, room string, b *nucleo.Libro) la
 	me := n.Clave()
 	ms := n.MiembrosSala(room)
 	for _, m := range ms {
-		if a.clic("echar:"+m.Clave).Clicked(gtx) {
+		if a.clic("echar:" + m.Clave).Clicked(gtx) {
 			n.Salas().Echar(room, m.Clave, false)
 		}
-		if a.clic("banear:"+m.Clave).Clicked(gtx) {
+		if a.clic("banear:" + m.Clave).Clicked(gtx) {
 			n.Salas().Echar(room, m.Clave, true)
 		}
 		if a.clic("hablar:"+m.Clave).Clicked(gtx) && m.Clave != me {

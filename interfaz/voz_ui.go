@@ -23,7 +23,7 @@ func (a *App) vozClicks(gtx layout.Context, room string, b *nucleo.Libro) {
 	}
 	for _, c := range b.Canales() {
 		id := room + "/" + c
-		if a.clic("canal:"+id).Clicked(gtx) {
+		if a.clic("canal:" + id).Clicked(gtx) {
 			if a.voz.Canal() == id {
 				a.voz.Salir()
 			} else if err := a.voz.Entrar(id, a.n.EnSala(room)); err != nil {
@@ -42,7 +42,7 @@ func (a *App) vozClicks(gtx layout.Context, room string, b *nucleo.Libro) {
 		}
 	}
 	for k := range a.voz.Pantallas() {
-		if a.clic("pant:"+k).Clicked(gtx) {
+		if a.clic("pant:" + k).Clicked(gtx) {
 			if a.pantallaGrande == k {
 				a.pantallaGrande = ""
 			} else {
