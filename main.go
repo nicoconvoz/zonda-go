@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
+	"time"
 
 	"gioui.org/app"
 
@@ -15,6 +17,17 @@ import (
 )
 
 func main() {
+	// For measuring: ZONDAGO_PERFIL=archivo writes a 40 s CPU profile of the running program.
+	if f := os.Getenv("ZONDAGO_PERFIL"); f != "" {
+		if out, err := os.Create(f); err == nil {
+			pprof.StartCPUProfile(out)
+			go func() {
+				time.Sleep(40 * time.Second)
+				pprof.StopCPUProfile()
+				out.Close()
+			}()
+		}
+	}
 	dir := os.Getenv("ZONDAGO_DATOS")
 	if dir == "" {
 		dir = filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo")
