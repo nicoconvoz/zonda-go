@@ -93,6 +93,20 @@ func TestInternetLinkOpensWithWebRTC(t *testing.T) {
 	a.Hacer(func() { a.Red.MarcarYa(b.Clave()) })
 	esperar(t, a, "enlace WebRTC arriba", func() bool { return a.Router.EsVecino(VecinoNet(b.Clave())) })
 	esperar(t, b, "enlace WebRTC arriba del otro lado", func() bool { return b.Router.EsVecino(VecinoNet(a.Clave())) })
+	// The voice channel between Go devices rides the same link, unordered.
+	llego := make(chan []byte, 1)
+	b.Red.OnVoz = func(_ string, f []byte) { llego <- f }
+	for i := 0; i < 50 && !a.Red.EnviarVoz(b.Clave(), []byte("Z1voz")); i++ {
+		time.Sleep(50 * time.Millisecond)
+	}
+	select {
+	case f := <-llego:
+		if string(f) != "Z1voz" {
+			t.Fatal("cuadro de voz cambiado")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("el canal de voz no llevó el cuadro")
+	}
 	// The radio goes away: a private message still crosses by the Internet link.
 	a.Hacer(func() { a.Router.Quitar("radio") })
 	b.Hacer(func() { b.Router.Quitar("radio") })

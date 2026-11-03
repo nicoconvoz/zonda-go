@@ -11,6 +11,7 @@ import (
 
 	"github.com/nicoconvoz/zonda/zondago/interfaz"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
+	"github.com/nicoconvoz/zonda/zondago/voz"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 	}
 	n := nucleo.NuevoNodo(alm)
 	go n.Correr()
-	ui := interfaz.Nueva(n, nil)
+	ui := interfaz.Nueva(n, voz.NuevaSala(n))
 	go func() {
 		err := ui.Correr()
 		n.Consultar(n.Chau)

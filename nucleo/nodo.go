@@ -520,6 +520,22 @@ func (n *Nodo) senalPor(to string, data Msg, flood bool) bool {
 	return false
 }
 
+// SenalDirecta seals data for to and sends it only over the direct link with them (heavy traffic such as screen
+// tiles never goes through the public relays); false when there is no such link.
+func (n *Nodo) SenalDirecta(to string, data Msg) bool {
+	if n.Yo == nil || !n.Router.EsVecino(VecinoNet(to)) {
+		return false
+	}
+	at, from := ahora(), n.Clave()
+	sealed, err := n.Yo.Sellar(to, []byte(Codificar(data)))
+	if err != nil {
+		return false
+	}
+	body := hex.EncodeToString(sealed)
+	env := Msg{"t": "sig", "sf": from, "st": to, "at": at, "box": body, "sig": n.Yo.Firmar(fmt.Sprintf("SG2|%s|%s|%d|%s", from, to, at, body)), "chain": n.Cadena}
+	return n.Router.InundarHacia(VecinoNet(to), env, 1)
+}
+
 // RecibirSobre: a sealed signal envelope that arrived outside the mesh (Nostr).
 func (n *Nodo) RecibirSobre(env Msg) { n.alSobre(env) }
 

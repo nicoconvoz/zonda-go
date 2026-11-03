@@ -48,11 +48,15 @@ type Red struct {
 	mu   sync.Mutex // guards the connections, used from pion's goroutines
 	pcs  map[string]*webrtc.PeerConnection
 	dcs  map[string]*webrtc.DataChannel
+	voz  map[string]*webrtc.DataChannel
 	porV map[string]string
+
+	// OnVoz gets the voice frames from another Go device (called on pion's goroutine).
+	OnVoz func(key string, b []byte)
 }
 
 func nuevaRed(n *Nodo) *Red {
-	r := &Red{n: n, pares: map[string]*par{}, Stats: map[string]int{}, pcs: map[string]*webrtc.PeerConnection{}, dcs: map[string]*webrtc.DataChannel{}, porV: map[string]string{}}
+	r := &Red{n: n, pares: map[string]*par{}, Stats: map[string]int{}, pcs: map[string]*webrtc.PeerConnection{}, dcs: map[string]*webrtc.DataChannel{}, voz: map[string]*webrtc.DataChannel{}, porV: map[string]string{}}
 	if v, ok := n.Alm.LeerJSON("net.cache"); ok {
 		r.cache = Textos(v)
 	}
@@ -316,6 +320,19 @@ func (r *Red) nuevaPC(key string) (*webrtc.PeerConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The voice between Go devices: a channel of its own, unordered and never retransmitted (a late voice frame is
+	// worth nothing). Negotiated on both sides with a fixed id, so the app's side never sees it open.
+	ordenado, intentos, idVoz := false, uint16(0), uint16(7)
+	if dv, err := pc.CreateDataChannel("zvoz", &webrtc.DataChannelInit{Ordered: &ordenado, MaxRetransmits: &intentos, Negotiated: &[]bool{true}[0], ID: &idVoz}); err == nil {
+		dv.OnMessage(func(m webrtc.DataChannelMessage) {
+			if !m.IsString && r.OnVoz != nil {
+				r.OnVoz(key, m.Data)
+			}
+		})
+		r.mu.Lock()
+		r.voz[key] = dv
+		r.mu.Unlock()
+	}
 	r.mu.Lock()
 	r.pcs[key] = pc
 	r.porV[VecinoNet(key)] = key
@@ -435,6 +452,7 @@ func (r *Red) cerrar(key string) {
 	r.mu.Lock()
 	dc, pc := r.dcs[key], r.pcs[key]
 	delete(r.dcs, key)
+	delete(r.voz, key)
 	delete(r.pcs, key)
 	r.mu.Unlock()
 	if dc != nil {
@@ -457,6 +475,17 @@ func (r *Red) Enviar(vecino, js string) {
 	for _, part := range Partir(js, fragmento) {
 		dc.SendText(part)
 	}
+}
+
+// EnviarVoz sends one voice frame to another Go device over the voice channel; false without one open.
+func (r *Red) EnviarVoz(key string, b []byte) bool {
+	r.mu.Lock()
+	dv := r.voz[key]
+	r.mu.Unlock()
+	if dv == nil || dv.ReadyState() != webrtc.DataChannelStateOpen {
+		return false
+	}
+	return dv.Send(b) == nil
 }
 
 // Abiertos: how many links are open now.
