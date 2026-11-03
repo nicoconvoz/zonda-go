@@ -20,13 +20,14 @@ bash herramientas/terceros.sh
 
 Instala con `pacman` los paquetes de MSYS2 que hacen falta, compila los dos puentes propios de Zonda
 (`apm/zapm.cc` → `zapm.dll`, `video/zvid.cc` → `zvid.dll`), copia las DLL de ejecución a `voz/apm_dlls/` y baja las
-tipografías de Google Fonts a `interfaz/fuentes/`.
+tipografías de Google Fonts a `interfaz/fuentes/`, con las licencias de todo eso en `licencias/terceros/`.
 
 ```powershell
 .\construir.ps1
 ```
 
-Compila el programa en `dist\`: `zondago.exe` con sus DLL al lado.
+Compila el programa en `dist\`: `zondago.exe` con sus DLL al lado y la carpeta `licencias\` (la de Zonda, la de
+cada módulo de Go y las de terceros), que viaja con el programa.
 
 ```powershell
 go test ./...

@@ -34,8 +34,9 @@ dentro de un programa AGPL.
 | libstdc++ y libgcc (GCC) | GPL-3.0 con la GCC Runtime Library Exception |
 | winpthreads (mingw-w64) | MIT y ZPL-2.1 |
 
-Quien reparta Zonda ya compilado tiene que acompañar las licencias de estas bibliotecas: MSYS2 deja cada texto en
-`C:\msys64\ucrt64\share\licenses\`.
+Quien reparta Zonda ya compilado tiene que acompañar estas licencias. `construir.ps1` las deja en `dist\licencias\`
+—las de Go leídas de cada módulo, las nativas y las de las tipografías bajadas por la receta— y el instalador las
+instala al lado del programa.
 
 ## Tipografías (las baja la receta, de Google Fonts)
 
