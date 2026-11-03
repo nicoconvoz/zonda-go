@@ -313,6 +313,7 @@ func (n *Nodo) alHola(m Msg, de string) {
 		p.Nick = nk
 	}
 	n.personas[c.Key] = p
+	n.aprenderNombre(c.Key, c.Name)
 	if de != "" {
 		n.via[c.Key] = de
 	}
@@ -457,10 +458,11 @@ func (n *Nodo) NombreDe(key string) string {
 	if nk, ok := n.nombres[key]; ok && nk != "" {
 		return nk
 	}
-	if len(key) > 8 {
-		return key[:8]
+	// Someone never seen, as the app names them.
+	if len(key) >= 6 {
+		return "Miembro " + key[:6]
 	}
-	return key
+	return "Miembro " + key
 }
 
 func (n *Nodo) FotoDe(key string) string {

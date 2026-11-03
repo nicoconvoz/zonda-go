@@ -134,9 +134,28 @@ func (n *Nodo) guardarChats() {
 		cs = append(cs, k)
 	}
 	n.Alm.EscribirJSON("contactos", cs)
-	names := Msg{}
 	for k := range n.Contactos {
-		names[k] = n.NombreDe(k)
+		if nm := n.NombreDe(k); nm != "" && !strings.HasPrefix(nm, "Miembro ") {
+			n.nombres[k] = nm
+		}
+	}
+	n.guardarNombres()
+}
+
+// aprenderNombre remembers the last name seen on someone's card (_learnName in the app): the lists show it on the
+// next start, before their card arrives again. Written only when it changed.
+func (n *Nodo) aprenderNombre(key, nombre string) {
+	if nombre == "" || key == "" || n.nombres[key] == nombre {
+		return
+	}
+	n.nombres[key] = nombre
+	n.guardarNombres()
+}
+
+func (n *Nodo) guardarNombres() {
+	names := Msg{}
+	for k, nm := range n.nombres {
+		names[k] = nm
 	}
 	n.Alm.EscribirJSON("nombres", names)
 }
