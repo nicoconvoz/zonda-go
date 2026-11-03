@@ -67,12 +67,12 @@ type waveHdr struct {
 var formato = waveFormat{FormatTag: 1, Channels: 1, SamplesPerSec: 48000, AvgBytesPerSec: 96000, BlockAlign: 2, BitsPerSample: 16}
 
 type dispositivo struct {
-	h      uintptr
-	ev     uintptr
-	hdrs   []*waveHdr
-	bufs   [][]byte
-	parar  chan struct{}
-	listo  sync.WaitGroup
+	h     uintptr
+	ev    uintptr
+	hdrs  []*waveHdr
+	bufs  [][]byte
+	parar chan struct{}
+	listo sync.WaitGroup
 }
 
 func nuevoEvento() uintptr { h, _, _ := createEvent.Call(0, 0, 0, 0); return h }

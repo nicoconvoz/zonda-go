@@ -28,21 +28,21 @@ import (
 // frame per second.
 
 const (
-	lado       = 64 // tile side, pixels
-	anchoMax   = 1280
+	lado        = 64 // tile side, pixels
+	anchoMax    = 1280
 	cadaCaptura = 300 * time.Millisecond // criterion, not a measurement: about 3 frames a second while sharing
-	calidad    = 70
+	calidad     = 70
 )
 
 type pantalla struct {
 	s  *Sala
 	mu sync.Mutex
 
-	on      bool
-	parada  chan struct{}
-	huellas []uint64
+	on          bool
+	parada      chan struct{}
+	huellas     []uint64
 	ancho, alto int
-	nuevos  map[string]bool // who must get the whole screen
+	nuevos      map[string]bool // who must get the whole screen
 
 	ajenas map[string]*image.RGBA
 }

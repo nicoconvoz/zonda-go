@@ -27,12 +27,12 @@ var (
 )
 
 type bitmapInfoHeader struct {
-	Size                          uint32
-	Width, Height                 int32
-	Planes, BitCount              uint16
-	Compression, SizeImage        uint32
-	XPelsPerMeter, YPelsPerMeter  int32
-	ClrUsed, ClrImportant         uint32
+	Size                         uint32
+	Width, Height                int32
+	Planes, BitCount             uint16
+	Compression, SizeImage       uint32
+	XPelsPerMeter, YPelsPerMeter int32
+	ClrUsed, ClrImportant        uint32
 }
 
 func capturar() (*image.RGBA, error) {

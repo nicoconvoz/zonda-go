@@ -53,20 +53,32 @@ func tono(n int, amp float64) []int16 {
 	return out
 }
 
-// Hiss alone is faded to near silence; a voice well above it passes whole.
-func TestGateDropsHissKeepsVoice(t *testing.T) {
+// The room is turned down between words, never cut; a voice a meter away (just over the room) is brought up to a
+// talking level; a loud one is not clipped.
+func TestGateKeepsTheRoomAndBringsAFarVoiceUp(t *testing.T) {
 	c := NuevaCompuerta()
 	for i := 0; i < 100; i++ {
-		c.Limpiar(tono(Muestras, 80)) // a second of room hiss
+		c.Limpiar(tono(Muestras, 80)) // a second of room
 	}
 	h := tono(Muestras, 80)
 	c.Limpiar(h)
-	if rms(h) > 5 {
-		t.Fatalf("el siseo pasa: rms %.1f", rms(h))
+	if r := rms(h); r < 80*0.7*fondoAmbiente*0.8 || r > 80*0.7*0.5 {
+		t.Fatalf("el ambiente: rms %.1f (ni cortado ni entero)", r)
 	}
-	v := tono(Muestras, 3000)
-	c.Limpiar(v)
-	if rms(v) < 3000*0.7*0.95 {
-		t.Fatalf("la voz se cortó: rms %.1f", rms(v))
+	// Far voice: twice the room's level. After two seconds of talking it reaches a talking level.
+	var lejos []int16
+	for i := 0; i < 100; i++ {
+		lejos = tono(Muestras, 160*1.414)
+		c.Limpiar(lejos)
+	}
+	if r := rms(lejos); r < 1000 {
+		t.Fatalf("la voz lejana no sube: rms %.1f", r)
+	}
+	fuerte := tono(Muestras, 30000)
+	c.Limpiar(fuerte)
+	for _, x := range fuerte {
+		if x == 32767 || x == -32768 {
+			t.Fatal("satura")
+		}
 	}
 }

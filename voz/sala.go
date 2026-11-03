@@ -40,12 +40,12 @@ type Sala struct {
 }
 
 type conexion struct {
-	pc        *webrtc.PeerConnection
-	remota    bool
+	pc         *webrtc.PeerConnection
+	remota     bool
 	pendientes []webrtc.ICECandidateInit
-	sonido    chan []int16
-	conectada bool
-	segunda   bool
+	sonido     chan []int16
+	conectada  bool
+	segunda    bool
 }
 
 // opusVoz: Opus at 48 kHz as WebRTC names it (always "/2" in the SDP, mono content), with in-band FEC.
