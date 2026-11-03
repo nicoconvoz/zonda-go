@@ -566,7 +566,13 @@ func (a *App) listaMiembros(gtx layout.Context, ms []nucleo.Miembro, b *nucleo.L
 			return columna(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					hijos := []layout.FlexChild{
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icono2(gtx, ic, 24, ink) }), sep(10),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							// The profile photo when the member has one, else the man or woman icon.
+							if a.n.FotoDe(m.Clave) != "" {
+								return a.avatar(gtx, m.Clave, m.Nombre, 28)
+							}
+							return icono2(gtx, ic, 24, ink)
+						}), sep(10),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							l := material.Label(a.th, unit.Sp(15), nombre)
 							l.Color, l.Font.Weight, l.MaxLines = ink, font.Bold, 1
