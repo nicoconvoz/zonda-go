@@ -16,6 +16,7 @@ import (
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 
+	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
@@ -77,6 +78,7 @@ func (p *pantalla) agregar(pc *webrtc.PeerConnection) bool {
 	p.envios[pc] = snd
 	p.mu.Unlock()
 	go func() {
+		diag.Nombrar("pantalla-rtcp")
 		for {
 			pkts, _, err := snd.ReadRTCP()
 			if err != nil {
@@ -180,6 +182,7 @@ func (p *pantalla) quitar(peer string) {
 }
 
 func (p *pantalla) bucle(parada chan struct{}) {
+	diag.Nombrar("pantalla-enviar")
 	t := time.NewTicker(cadaCaptura)
 	defer t.Stop()
 	for {
@@ -340,6 +343,7 @@ func (p *pantalla) vistas() map[string]image.Image {
 // recibirVideo decodes a VP8 screen from the app whole with libvpx; when the decoder loses its reference (a packet
 // lost), it asks for a key frame (PLI), at most once a second.
 func (p *pantalla) recibirVideo(peer string, pc *webrtc.PeerConnection, t *webrtc.TrackRemote) {
+	diag.Nombrar("pantalla-recibir")
 	if t.Codec().MimeType != webrtc.MimeTypeVP8 {
 		return
 	}

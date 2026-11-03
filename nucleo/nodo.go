@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/nicoconvoz/zonda/zondago/diag"
 )
 
 func ahora() int64 { return time.Now().UnixMilli() }
@@ -127,6 +129,7 @@ func aleatorio(k int) []byte {
 // Correr is the node's loop: it runs every posted change, plus the beat every 20 s (cheap when nothing changed:
 // a hello goes out only when what it says changed).
 func (n *Nodo) Correr() {
+	diag.Nombrar("nodo")
 	n.Tablero.arrancar()
 	tic := time.NewTicker(3 * time.Second)
 	beat := time.NewTicker(20 * time.Second)

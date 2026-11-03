@@ -11,11 +11,11 @@ import (
 // Almacen keeps the device's data as key/value text in one JSON file (the KeyValueStore of the Dart core), and
 // photos and files as their own files named by fingerprint. Writes are gathered and saved once a second at most.
 type Almacen struct {
-	dir     string
-	mu      sync.Mutex
-	datos   map[string]string
-	sucio   bool
-	timer   *time.Timer
+	dir   string
+	mu    sync.Mutex
+	datos map[string]string
+	sucio bool
+	timer *time.Timer
 }
 
 func AbrirAlmacen(dir string) (*Almacen, error) {

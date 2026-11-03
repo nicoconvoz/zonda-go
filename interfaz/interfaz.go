@@ -30,6 +30,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/explorer"
 
+	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
@@ -145,6 +146,7 @@ func (a *App) clic(id string) *widget.Clickable {
 
 // Correr is the window's event loop.
 func (a *App) Correr() error {
+	diag.Nombrar("interfaz")
 	for {
 		e := a.W.Event()
 		a.expl.ListenEvents(e)

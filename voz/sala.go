@@ -13,6 +13,7 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/tphakala/go-opus/opus"
 
+	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
@@ -345,6 +346,7 @@ func (s *Sala) nuevaConexion(peer string) (*conexion, error) {
 			return
 		}
 		go func() {
+			diag.Nombrar("voz-recibir")
 			for {
 				p, _, err := t.ReadRTP()
 				if err != nil {

@@ -20,18 +20,18 @@ const (
 )
 
 type par struct {
-	st                 estado
-	at, next           int64
-	fallas             int
+	st       estado
+	at, next int64
+	fallas   int
 }
 
 const (
-	pendingMs   = 12000
-	redialMs    = 10000
-	maxBackoff  = 2 * 60000
-	maxEnlaces  = 8
-	maxPending  = 4
-	fragmento   = 60000
+	pendingMs  = 12000
+	redialMs   = 10000
+	maxBackoff = 2 * 60000
+	maxEnlaces = 8
+	maxPending = 4
+	fragmento  = 60000
 )
 
 var stunPublicos = []string{"stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"}

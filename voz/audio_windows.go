@@ -7,6 +7,8 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/nicoconvoz/zonda/zondago/diag"
 )
 
 // The microphone and the speaker through winmm (waveIn / waveOut), pure Go: 48 kHz mono 16-bit, the rate Opus
@@ -96,6 +98,7 @@ func AbrirMicrofono(frame func([]int16)) (*Microfono, error) {
 	waveInStart.Call(m.d.h)
 	m.d.listo.Add(1)
 	go func() {
+		diag.Nombrar("microfono")
 		defer m.d.listo.Done()
 		next := 0
 		for {
@@ -184,6 +187,7 @@ func AbrirParlante(siguiente func([]int16)) (*Parlante, error) {
 	}
 	p.d.listo.Add(1)
 	go func() {
+		diag.Nombrar("parlante")
 		defer p.d.listo.Done()
 		next := 0
 		for {

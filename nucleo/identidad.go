@@ -41,7 +41,9 @@ func Restaurar(secretHex string) (*Identidad, error) {
 	return DesdeSemilla(b[:32]), nil
 }
 
-func (id *Identidad) Publica() string  { return hex.EncodeToString(id.priv.Public().(ed25519.PublicKey)) }
+func (id *Identidad) Publica() string {
+	return hex.EncodeToString(id.priv.Public().(ed25519.PublicKey))
+}
 func (id *Identidad) Exportar() string { return hex.EncodeToString(id.priv) }
 
 // Firmar: detached signature of the UTF-8 message, hex.

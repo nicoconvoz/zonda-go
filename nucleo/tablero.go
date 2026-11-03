@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/nicoconvoz/zonda/zondago/diag"
 )
 
 /* ---------- the Nostr board (net/nostr.dart, adapters/nostr_relays.dart): first contact only ---------- */
@@ -28,8 +29,8 @@ const (
 var relaysComunes = []string{"wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net", "wss://relay.snort.social"}
 
 type relay struct {
-	url    string
-	salida chan string
+	url     string
+	salida  chan string
 	abierto bool
 }
 
@@ -91,6 +92,7 @@ func (t *Tablero) arrancar() {
 
 // mantener keeps one relay connected, waiting longer after each failure (5 s, 10 s… 10 min).
 func (t *Tablero) mantener(r *relay) {
+	diag.Nombrar("tablero")
 	espera := 5 * time.Second
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -105,6 +107,7 @@ func (t *Tablero) mantener(r *relay) {
 			t.n.Hacer(t.alAbrir)
 			ctx, stop := context.WithCancel(context.Background())
 			go func() {
+				diag.Nombrar("tablero-escribir")
 				for {
 					select {
 					case s := <-r.salida:

@@ -11,6 +11,7 @@ import (
 
 	"gioui.org/app"
 
+	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/interfaz"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 	"github.com/nicoconvoz/zonda/zondago/voz"
@@ -36,6 +37,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// For measuring: ZONDAGO_DIAG=1 names the goroutines, opens the live profiler on 127.0.0.1:6060 and writes
+	// diag.txt next to the data.
+	diag.Arrancar(dir)
 	n := nucleo.NuevoNodo(alm)
 	// For trying several devices on one computer: ZONDAGO_APODO makes the account with no clicks.
 	if a := os.Getenv("ZONDAGO_APODO"); a != "" && !n.TieneCuenta() {

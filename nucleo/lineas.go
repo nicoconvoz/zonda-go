@@ -14,8 +14,8 @@ import (
 /* ---------- the official network (protocol/official_network.dart) ---------- */
 
 const (
-	Fundador   = "704f0424bbde3f368c0bce7bd28d7a7c7f9ae88e589d9c51a0a2505d31be121a"
-	Genesis    = "G1 net=zonda founder=704f0424bbde3f368c0bce7bd28d7a7c7f9ae88e589d9c51a0a2505d31be121a t=1793647553894 sig=e1d7700102269e3806092c4139f5ee9a2765bca2a10d35ce2c7557adc8375705d28ecc9c67a557481da85a9233c7d77ba9e999adaafaa14da177fd2d09b74604"
+	Fundador      = "704f0424bbde3f368c0bce7bd28d7a7c7f9ae88e589d9c51a0a2505d31be121a"
+	Genesis       = "G1 net=zonda founder=704f0424bbde3f368c0bce7bd28d7a7c7f9ae88e589d9c51a0a2505d31be121a t=1793647553894 sig=e1d7700102269e3806092c4139f5ee9a2765bca2a10d35ce2c7557adc8375705d28ecc9c67a557481da85a9233c7d77ba9e999adaafaa14da177fd2d09b74604"
 	PuertaAbierta = "OD1 net=zonda by=704f0424bbde3f368c0bce7bd28d7a7c7f9ae88e589d9c51a0a2505d31be121a exp=1801423562073 zeros=4 sig=4fac3632a3cc845d1c87285f5639bbf8fca36ec1dd35b789225cf2bde89bf67842806591f670337e754442d7cb32757fbe2b18e10ef733b951405fd12f48580f"
 )
 
@@ -185,12 +185,12 @@ func EntradaDe(j Msg) (Entrada, bool) {
 
 type Tarjeta struct {
 	Key, Name, Gender, Bio, Photo, Zone string
-	Age                                  *int64
-	CellX, CellY                         *int64
-	Likes, Photos                        []string
-	Dating                               bool
-	At                                   int64
-	Sig                                  string
+	Age                                 *int64
+	CellX, CellY                        *int64
+	Likes, Photos                       []string
+	Dating                              bool
+	At                                  int64
+	Sig                                 string
 }
 
 func opt(p *int64) string {
