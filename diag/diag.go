@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"time"
 )
 
@@ -44,6 +45,14 @@ func Arrancar(dir string) {
 	if !Activo {
 		return
 	}
+	// /zonda/nucleos?n=2 changes how many cores Go runs on, live: to measure what the scheduler costs in a call
+	// without restarting it.
+	http.HandleFunc("/zonda/nucleos", func(w http.ResponseWriter, r *http.Request) {
+		if n, err := strconv.Atoi(r.URL.Query().Get("n")); err == nil && n > 0 {
+			runtime.GOMAXPROCS(n)
+		}
+		fmt.Fprintln(w, runtime.GOMAXPROCS(0))
+	})
 	go http.ListenAndServe("127.0.0.1:6060", nil)
 	go Hilo("diag", func() { diario(filepath.Join(dir, "diag.txt")) })
 }
@@ -55,7 +64,7 @@ func diario(ruta string) {
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "\n# %s  arranca (MB; cpu = %% de un núcleo en los últimos %v)\n", time.Now().Format("2006-01-02 15:04:05"), cadaLinea)
-	fmt.Fprintln(f, "# hora      cpu   proceso  go-total  go-montón  fuera-de-go  gcs  goroutines")
+	fmt.Fprintln(f, "# hora      cpu   proceso  go-total  go-montón  fuera-de-go  gcs  goroutines  núcleos")
 	prevCPU, prevT := cpuProceso(), time.Now()
 	for range time.Tick(cadaLinea) {
 		var m runtime.MemStats
