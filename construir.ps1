@@ -1,4 +1,4 @@
-# Builds Zonda Go into dist\: the program and, next to it, the WebRTC libraries it loads (audio processing, video).
+﻿# Builds Zonda Go into dist\: the program and, next to it, the WebRTC libraries it loads (audio processing, video).
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 New-Item -ItemType Directory -Force dist | Out-Null

@@ -1,0 +1,46 @@
+Zonda
+=====
+
+Copyright (C) 2026  Jesús Nicolás Astorga
+Copyright (C) 2026  RESOURCES OPEN DOORS S.A.S
+
+
+EL CÓDIGO
+---------
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+El texto completo está en el archivo LICENSE.
+
+
+EL ARTÍCULO 13, QUE ACÁ NOS TOCA
+--------------------------------
+
+Zonda es un programa de red: cada dispositivo habla con los otros. La sección
+13 de la AGPL obliga a que quien use por red una versión modificada pueda
+obtener su código fuente. Si cambiás Zonda y otros se conectan con tu versión,
+tenés que ofrecerles el fuente de esa versión.
+
+
+USO CERRADO
+-----------
+
+Para incorporarlo a un producto sin publicar el fuente hay licencia comercial:
+ver LICENCIA-COMERCIAL.md.
+
+
+DE TERCEROS
+-----------
+
+Zonda usa bibliotecas y tipografías de otros autores, cada una con su licencia:
+ver TERCEROS.md.

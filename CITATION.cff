@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "Si usás Zonda, citalo así."
+title: "Zonda — salas, chat, llamadas y pantalla compartida de dispositivo a dispositivo"
+abstract: >-
+  Zonda para Windows, escrito en Go: salas, chat, llamadas de voz y pantalla
+  compartida que viajan de dispositivo a dispositivo por WebRTC, sin servidores
+  ni cuentas. La voz pasa por el procesamiento de audio real de WebRTC
+  (cancelador de eco AEC3, supresor de ruido, AGC2) y Opus; la pantalla, por
+  VP8 de libvpx; los dispositivos se encuentran por un tablero Nostr y la voz
+  se reparte en un árbol de reenvío.
+type: software
+authors:
+  - family-names: Astorga
+    given-names: "Jesús Nicolás"
+    email: mza.nicolas.astorga@gmail.com
+  - name: "RESOURCES OPEN DOORS S.A.S"
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/nicoconvoz/zonda-go"
+url: "https://nicoconvoz.github.io/zonda-web/"
+version: "v0.4.0"
+date-released: "2026-11-03"
+keywords:
+  - peer-to-peer
+  - webrtc
+  - voice-chat
+  - screen-sharing
+  - nostr
+  - go

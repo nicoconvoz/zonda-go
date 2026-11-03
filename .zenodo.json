@@ -1,0 +1,24 @@
+{
+  "title": "Zonda — salas, chat, llamadas y pantalla compartida de dispositivo a dispositivo",
+  "description": "<p>Zonda para Windows, escrito en Go: salas, chat, llamadas de voz y pantalla compartida que viajan de dispositivo a dispositivo por WebRTC, sin servidores, sin cuentas y sin publicidad.</p><p><strong>Cómo está hecho:</strong> la ventana la dibuja Gio; los enlaces son WebRTC (pion); la voz pasa por el procesamiento de audio real de WebRTC (cancelador de eco AEC3, supresor de ruido, AGC2) y Opus, y se reparte en un árbol de reenvío; la pantalla compartida va en VP8 con libvpx y libyuv; los dispositivos se encuentran por un tablero Nostr.</p><p><strong>Qué incluye:</strong> solo el código de Zonda. Las bibliotecas nativas y las tipografías de terceros no se incluyen: la receta de CONSTRUIR.md las baja de su fuente original.</p><p><strong>Licencias:</strong> el código bajo AGPL-3.0-or-later, con licencia comercial disponible.</p>",
+  "upload_type": "software",
+  "language": "spa",
+  "license": "AGPL-3.0-or-later",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Astorga, Jesús Nicolás"
+    },
+    {
+      "name": "RESOURCES OPEN DOORS S.A.S"
+    }
+  ],
+  "keywords": [
+    "de dispositivo a dispositivo",
+    "WebRTC",
+    "llamadas de voz",
+    "pantalla compartida",
+    "Nostr",
+    "Go"
+  ]
+}
