@@ -71,7 +71,7 @@ type App struct {
 	// widgets
 	nick, salaNombre, codigo, buscar, mensaje, canales   widget.Editor
 	hombre, mujer, elegirFoto, entrar                    widget.Clickable
-	tabs                                                 [5]widget.Clickable
+	tabs                                                 [4]widget.Clickable
 	gotching, wenas                                      widget.Clickable
 	crear, golpear, cancelarGolpe, buscarBtn             widget.Clickable
 	volver, copiar, cerrarSala, enviar, adjFoto, archivo widget.Clickable

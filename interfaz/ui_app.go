@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/color"
 	"os"
-	"sort"
 	"strings"
 
 	"gioui.org/font"
@@ -20,11 +19,11 @@ import (
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
-/* ---------- the shell (app/shell.dart): the bar with the five sections ---------- */
+/* ---------- the shell (app/shell.dart): the bar with the four sections ---------- */
 
-// secciones: app/sections.dart, in its order.
+// secciones: app/sections.dart, in its order, without Chat: private conversations open from Usuarios or a room.
 var secciones = []struct{ id, icono, nombre string }{
-	{"salas", "salas", "Salas"}, {"chat", "chat", "Chat"}, {"usuarios", "usuarios", "Usuarios"}, {"ajustes", "gear", "Configuración"}, {"apagar", "power", "Apagar"},
+	{"salas", "salas", "Salas"}, {"usuarios", "usuarios", "Usuarios"}, {"ajustes", "gear", "Configuración"}, {"apagar", "power", "Apagar"},
 }
 
 func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
@@ -37,8 +36,6 @@ func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(a.barra),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			switch secciones[a.tab].id {
-			case "chat":
-				return a.chats(gtx)
 			case "usuarios":
 				return a.usuarios(gtx)
 			case "ajustes":
@@ -326,50 +323,6 @@ func (a *App) confirmarDialogo(v string) {
 			s.FijarCanales(b.ID(), append(append([]string(nil), b.Canales()...), v))
 		}
 	}
-}
-
-/* ---------- Chat: the private conversations ---------- */
-
-func (a *App) chats(gtx layout.Context) layout.Dimensions {
-	n := a.n
-	var keys []string
-	for k := range n.Chats {
-		keys = append(keys, k)
-	}
-	ultimo := func(k string) int64 {
-		l := n.Chats[k]
-		if len(l) == 0 {
-			return 0
-		}
-		return l[len(l)-1].At
-	}
-	sort.Slice(keys, func(i, j int) bool { return ultimo(keys[i]) > ultimo(keys[j]) })
-	items := []layout.Widget{func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.regla(gtx, "Chats", "") })
-	}}
-	if len(keys) == 0 {
-		items = append(items, func(gtx layout.Context) layout.Dimensions {
-			return a.vacio(gtx, "chat", "Todavía no hay chats. Abrí uno desde Usuarios o desde la lista de una sala.")
-		})
-	}
-	for _, k := range keys {
-		k := k
-		if a.clic("chat:" + k).Clicked(gtx) {
-			a.chat, a.vista = k, pChat
-		}
-		l := n.Chats[k]
-		ult := ""
-		if len(l) > 0 {
-			ult = l[len(l)-1].Texto
-			if ult == "" {
-				ult = "Foto"
-			}
-		}
-		items = append(items, func(gtx layout.Context) layout.Dimensions {
-			return a.filaPersona(gtx, a.clic("chat:"+k), k, ult)
-		})
-	}
-	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.listado(gtx, &a.principal, items) })
 }
 
 // filaPersona: a person's row (the card color of their gender, their icon, name and a line under it).
