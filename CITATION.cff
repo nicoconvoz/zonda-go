@@ -15,6 +15,7 @@ authors:
     email: mza.nicolas.astorga@gmail.com
   - name: "RESOURCES OPEN DOORS S.A.S"
 license: AGPL-3.0-or-later
+doi: "10.5281/zenodo.23921404"
 repository-code: "https://github.com/nicoconvoz/zonda-go"
 url: "https://nicoconvoz.github.io/zonda-web/"
 version: "v0.4.0"

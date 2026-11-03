@@ -31,7 +31,7 @@ el acuerdo de ambos.
 
 ```
 Jesús Nicolás Astorga y RESOURCES OPEN DOORS S.A.S, «Zonda», 2026.
-https://github.com/nicoconvoz/zonda-go
+https://doi.org/10.5281/zenodo.23921404
 ```
 
 Los datos completos están en [CITATION.cff](CITATION.cff).

@@ -1,5 +1,7 @@
 # Zonda
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23921404.svg)](https://doi.org/10.5281/zenodo.23921404)
+
 Salas, chat, llamadas y pantalla compartida, **de dispositivo a dispositivo**, sin servidores, sin cuentas y sin
 publicidad. Este es Zonda para Windows, escrito entero en Go: la ventana la dibuja [Gio](https://gioui.org), los
 enlaces son WebRTC ([pion](https://github.com/pion/webrtc)) y la voz pasa por el procesamiento de audio de WebRTC.
