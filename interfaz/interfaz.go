@@ -79,6 +79,7 @@ type App struct {
 	lista, miembros, principal                           widget.List
 	clicks                                               map[string]*widget.Clickable
 
+	texturas       map[string]textura
 	genero         string
 	fotoAlta       []byte
 	imagenes       map[string]paint.ImageOp
@@ -94,7 +95,7 @@ type App struct {
 }
 
 func Nueva(n *nucleo.Nodo, voz Voz) *App {
-	a := &App{n: n, voz: voz, clicks: map[string]*widget.Clickable{}, imagenes: map[string]paint.ImageOp{}, genero: "m"}
+	a := &App{n: n, voz: voz, clicks: map[string]*widget.Clickable{}, imagenes: map[string]paint.ImageOp{}, texturas: map[string]textura{}, genero: "m"}
 	a.W = new(app.Window)
 	a.W.Option(app.Title("Zonda"), app.Size(unit.Dp(1100), unit.Dp(760)), app.MinSize(unit.Dp(420), unit.Dp(500)))
 	a.expl = explorer.NewExplorer(a.W)
@@ -160,6 +161,10 @@ func (a *App) Correr() error {
 
 func (a *App) dibujar(gtx layout.Context) {
 	paint.Fill(gtx.Ops, fondo)
+	if a.vista == pSala && a.pantallaCompleta(gtx) {
+		a.clicsPantallas(gtx)
+		return
+	}
 	switch a.vista {
 	case pAlta:
 		a.alta(gtx)

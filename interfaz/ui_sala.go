@@ -110,15 +110,7 @@ func (a *App) sala(gtx layout.Context) layout.Dimensions {
 	}
 	a.clicsComponer(gtx, room)
 	a.clicsMiembros(gtx, room, b)
-	for k := range a.voz.Pantallas() {
-		if a.clic("pant:" + k).Clicked(gtx) {
-			if a.pantallaGrande == k {
-				a.pantallaGrande = ""
-			} else {
-				a.pantallaGrande = k
-			}
-		}
-	}
+	a.clicsPantallas(gtx)
 
 	miembros := n.MiembrosSala(room)
 	tituloRegla := "Sala " + b.Nombre()
@@ -179,7 +171,6 @@ func (a *App) sala(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.fichasCanales(gtx, b, creador) }),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.pantallas(gtx) }),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !enVoz {
 				return layout.Dimensions{}
@@ -208,6 +199,15 @@ func (a *App) sala(gtx layout.Context) layout.Dimensions {
 					return a.vacio(gtx, "privados", "Abrí un privado desde la lista de usuarios de la sala.")
 				}
 				return a.charla(gtx, b)
+			}
+			// Someone sharing: the screens take the middle of the room, the chat goes under them.
+			if ks, _ := a.clavesPantallas(); len(ks) > 0 && a.salaTab == "chat" {
+				conPantalla := cuerpo
+				cuerpo = func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Flexed(0.62, a.pantallas),
+						layout.Flexed(0.38, conPantalla))
+				}
 			}
 			if gtx.Constraints.Max.X < dp(gtx, anchoConLista) || a.salaTab == "users" {
 				return cuerpo(gtx)
