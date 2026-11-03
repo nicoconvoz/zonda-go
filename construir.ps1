@@ -2,11 +2,12 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 New-Item -ItemType Directory -Force dist | Out-Null
-# A running program cannot be overwritten, but it can be renamed: the open window keeps working and the next start
-# opens the new build.
-# Old builds still open cannot be deleted either, so each one gets its own name and goes when it is closed.
+# The program keeps its name: when it is open it cannot be overwritten, so the build stops and asks to close it.
+if (Get-Process zondago -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$PSScriptRoot\dist\*" }) {
+    Write-Host "Zonda Go está abierto desde dist: cerralo y volvé a compilar."
+    exit 1
+}
 Get-ChildItem dist\zondago.viejo*.exe -ErrorAction SilentlyContinue | Remove-Item -ErrorAction SilentlyContinue
-if (Test-Path dist\zondago.exe) { Rename-Item dist\zondago.exe ("zondago.viejo-{0}.exe" -f (Get-Date -Format yyyyMMddHHmmss)) }
 go build -ldflags "-H windowsgui -s -w" -o dist\zondago.exe .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # Only the libraries that changed are copied: one the open window has loaded cannot be overwritten.
