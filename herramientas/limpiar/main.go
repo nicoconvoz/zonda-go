@@ -94,10 +94,12 @@ func bandas(pcm []int16) (ruido, vozDb []float64) {
 func main() {
 	pcm := leer(os.Args[1])
 	antesR, antesV := bandas(pcm)
-	p := voz.NuevoProcesador()
 	out := append([]int16(nil), pcm...)
-	for i := 0; i+voz.Muestras <= len(out); i += voz.Muestras {
-		p.Procesar(out[i : i+voz.Muestras])
+	if !procesarAPM(out) {
+		p := voz.NuevoProcesador()
+		for i := 0; i+voz.Muestras <= len(out); i += voz.Muestras {
+			p.Procesar(out[i : i+voz.Muestras])
+		}
 	}
 	if len(os.Args) > 2 {
 		escribir(os.Args[2], out)

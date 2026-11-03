@@ -32,6 +32,7 @@ type Sala struct {
 	pantalla *pantalla
 	enc      *opus.Encoder
 	proc     *Procesador
+	apm      *APM // WebRTC's real processing; nil when its DLLs did not load (then proc and comp)
 	comp     *Compuerta
 
 	// The Go devices in the channel: their voice goes by the relay tree over the data links (arbol.go).
@@ -146,6 +147,11 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 	s.mu.Lock()
 	s.canal, s.pista, s.mic, s.parlante, s.hablando = canal, pista, mic, parlante, false
 	s.enc, s.proc, s.comp = enc, NuevoProcesador(), NuevaCompuerta()
+	// The sound from the speaker comes back into the microphone after this computer's buffers: three 20 ms speaker
+	// buffers and one of the microphone (audio_windows.go). AEC3 refines the delay on its own.
+	if a, err := NuevoAPM(80); err == nil {
+		s.apm = a
+	}
 	s.goPares, s.fuentes, s.vistos = map[string]bool{}, map[string]*Fuente{}, map[string]map[uint32]bool{}
 	s.mu.Unlock()
 	for _, k := range miembros {
@@ -155,7 +161,16 @@ func (s *Sala) Entrar(canal string, miembros []string) error {
 }
 
 // Medidas: the voice's live counters, for the room.
-func (s *Sala) Medidas() string { return Medidas.Texto() }
+func (s *Sala) Medidas() string {
+	s.mu.Lock()
+	webrtc := s.apm != nil
+	s.mu.Unlock()
+	motor := "procesado: WebRTC (el verdadero)"
+	if !webrtc {
+		motor = "procesado: traducido (no cargó WebRTC: " + errorAPM() + ")"
+	}
+	return motor + " · " + Medidas.Texto()
+}
 
 // Guardar writes the recording so far (on leaving the channel and on closing the window).
 func (s *Sala) Guardar() { volcar(filepath.Join(os.Getenv("LOCALAPPDATA"), "ZondaGo", "grabaciones")) }
@@ -164,9 +179,9 @@ func (s *Sala) Salir() {
 	s.Guardar()
 	s.pantalla.parar()
 	s.mu.Lock()
-	canal, pcs, mic, parlante := s.canal, s.pcs, s.mic, s.parlante
+	canal, pcs, mic, parlante, apm := s.canal, s.pcs, s.mic, s.parlante, s.apm
 	gos := s.goPares
-	s.canal, s.pcs, s.mic, s.parlante, s.hablando = "", map[string]*conexion{}, nil, nil, false
+	s.canal, s.pcs, s.mic, s.parlante, s.hablando, s.apm = "", map[string]*conexion{}, nil, nil, false, nil
 	s.goPares, s.fuentes = map[string]bool{}, map[string]*Fuente{}
 	s.mu.Unlock()
 	for k, c := range pcs {
@@ -178,18 +193,23 @@ func (s *Sala) Salir() {
 	for k := range gos {
 		s.senal(k, nucleo.Msg{"kind": "v-bye", "room": canal})
 	}
-	if mic != nil {
-		go mic.Cerrar()
-	}
-	if parlante != nil {
-		go parlante.Cerrar()
-	}
+	// The devices first (Cerrar waits for their last callback), then WebRTC's processing they were calling.
+	go func() {
+		if mic != nil {
+			mic.Cerrar()
+		}
+		if parlante != nil {
+			parlante.Cerrar()
+		}
+		apm.Cerrar()
+	}()
+
 	s.n.Hacer(func() { s.n.OnCambio() })
 }
 
 func (s *Sala) alMicrofono(pcm []int16) {
 	s.mu.Lock()
-	on, pista, canal, enc, proc, comp := s.hablando, s.pista, s.canal, s.enc, s.proc, s.comp
+	on, pista, canal, enc, proc, comp, apm := s.hablando, s.pista, s.canal, s.enc, s.proc, s.comp, s.apm
 	s.seq++
 	seq, miembros := s.seq, s.miembrosGo()
 	s.mu.Unlock()
@@ -199,9 +219,13 @@ func (s *Sala) alMicrofono(pcm []int16) {
 	if !on || pista == nil || enc == nil || len(pcm) != Muestras {
 		return
 	}
-	// The hum and the hiss go first; the automatic gain then brings up the voice, not the noise.
-	proc.Procesar(pcm)
-	comp.Limpiar(pcm)
+	if apm != nil {
+		apm.Microfono(pcm)
+	} else {
+		// Without WebRTC's DLLs: the translated high-pass and noise suppressor, then the gain.
+		proc.Procesar(pcm)
+		comp.Limpiar(pcm)
+	}
 	anotar("microfono-enviado", pcm)
 	buf := make([]byte, 1500)
 	n, err := enc.Encode(pcm, buf)
@@ -289,6 +313,13 @@ func (s *Sala) mezclar(out []int16) {
 		out[i] = limitar(float64(v))
 	}
 	anotar("parlante", out)
+	// What the speaker plays is the echo canceller's reference.
+	s.mu.Lock()
+	apm := s.apm
+	s.mu.Unlock()
+	if apm != nil {
+		apm.Parlante(out)
+	}
 }
 
 func (s *Sala) nuevaConexion(peer string) (*conexion, error) {
