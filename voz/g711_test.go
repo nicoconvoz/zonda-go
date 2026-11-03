@@ -93,13 +93,14 @@ func TestSourceConcealsALatePacketAndDrains(t *testing.T) {
 		n, _ := enc.Encode(tono(Muestras, 6000), buf)
 		f.Llego(buf[:n])
 	}
-	for i := 0; i < colchon+1; i++ {
+	// Ten packets in a burst are all voice: none is dropped (a cut is static), they play in order.
+	for i := 0; i < 10; i++ {
 		if f.Siguiente() == nil {
 			t.Fatal("hay paquetes y no suena")
 		}
 	}
-	if len(f.fila) != 0 {
-		t.Fatalf("quedaron %d en la fila: la demora no se vació", len(f.fila))
+	if Medidas.tirados.Load() != 0 {
+		t.Fatalf("se tiraron %d paquetes de voz", Medidas.tirados.Load())
 	}
 	tarde := f.Siguiente()
 	if tarde == nil || rms(tarde) < 100 {
@@ -108,5 +109,21 @@ func TestSourceConcealsALatePacketAndDrains(t *testing.T) {
 	time.Sleep(ocultarHasta + 20*time.Millisecond)
 	if f.Siguiente() != nil {
 		t.Fatal("una pausa larga se sigue inventando")
+	}
+}
+
+// A line deeper than the jitter needs shrinks only through the quiet frames: silence is skipped, voice is not.
+func TestBufferShrinksOnlyThroughSilence(t *testing.T) {
+	enc, _ := opus.NewEncoder(opus.EncoderConfig{SampleRate: 48000, Channels: 1, Bitrate: bitrateVoz})
+	f := nuevaFuente()
+	buf := make([]byte, 1500)
+	for i := 0; i < 8; i++ {
+		n, _ := enc.Encode(make([]int16, Muestras), buf) // silence
+		f.Llego(buf[:n])
+	}
+	antes := Medidas.acortados.Load()
+	f.Siguiente()
+	if Medidas.acortados.Load()-antes < 3 || len(f.fila) > f.objetivo() {
+		t.Fatalf("el silencio no achicó la fila: quedan %d (objetivo %d)", len(f.fila), f.objetivo())
 	}
 }

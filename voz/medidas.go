@@ -16,9 +16,9 @@ import (
 // and what the speaker played, as WAV files to listen to and analyze.
 
 type medidas struct {
-	recibidos, tirados, ocultados, decodificados atomic.Int64
-	parlanteSeco, parlanteAtrasado               atomic.Int64 // speaker buffers that ran out / several due at once
-	micAtrasado, micPerdido                      atomic.Int64 // capture buffers found late / all of them full (audio lost)
+	recibidos, tirados, ocultados, decodificados, acortados atomic.Int64
+	parlanteSeco, parlanteAtrasado                          atomic.Int64 // speaker buffers that ran out / several due at once
+	micAtrasado, micPerdido                                 atomic.Int64 // capture buffers found late / all of them full (audio lost)
 
 	mu       sync.Mutex
 	llegadas []float64 // the gaps between packets of one source, ms (the last few hundred)
@@ -55,8 +55,8 @@ func (m *medidas) vaiven() float64 {
 
 // Texto: the live line for the room.
 func (m *medidas) Texto() string {
-	return fmt.Sprintf("paquetes %d · tirados %d · rellenados %d · vaivén %.0f ms · parlante seco %d atrasado %d · micrófono atrasado %d perdido %d",
-		m.recibidos.Load(), m.tirados.Load(), m.ocultados.Load(), m.vaiven(), m.parlanteSeco.Load(), m.parlanteAtrasado.Load(), m.micAtrasado.Load(), m.micPerdido.Load())
+	return fmt.Sprintf("paquetes %d · tirados %d · salteados en silencio %d · rellenados %d · vaivén %.0f ms · parlante seco %d atrasado %d · micrófono atrasado %d perdido %d",
+		m.recibidos.Load(), m.tirados.Load(), m.acortados.Load(), m.ocultados.Load(), m.vaiven(), m.parlanteSeco.Load(), m.parlanteAtrasado.Load(), m.micAtrasado.Load(), m.micPerdido.Load())
 }
 
 /* ---------- recording (ZONDAGO_GRABAR=1) ---------- */
@@ -66,18 +66,22 @@ type grabacion struct {
 	pistas map[string][]int16
 }
 
-var grabar = os.Getenv("ZONDAGO_GRABAR") == "1"
+// Always on in this experiment (ZONDAGO_GRABAR=0 turns it off): every call leaves its last minute measured, with no
+// command to type. The files stay on this computer.
+var grabar = os.Getenv("ZONDAGO_GRABAR") != "0"
 var cinta = &grabacion{pistas: map[string][]int16{}}
 
-// anotar keeps a copy of pcm in the named track (at most 2 minutes each).
+// anotar keeps a copy of pcm in the named track: the last minute.
 func anotar(pista string, pcm []int16) {
 	if !grabar {
 		return
 	}
 	cinta.mu.Lock()
-	if len(cinta.pistas[pista]) < 48000*120 {
-		cinta.pistas[pista] = append(cinta.pistas[pista], pcm...)
+	t := append(cinta.pistas[pista], pcm...)
+	if len(t) > 48000*60 {
+		t = append([]int16(nil), t[len(t)-48000*60:]...)
 	}
+	cinta.pistas[pista] = t
 	cinta.mu.Unlock()
 }
 
