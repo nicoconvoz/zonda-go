@@ -29,8 +29,17 @@ func main() {
 		n.CrearCuenta(a, "m", nil)
 	}
 	go n.Correr()
+	// For screenshots of the room: ZONDAGO_ENTRAR=1 opens the first room at start.
+	entrar := os.Getenv("ZONDAGO_ENTRAR") == "1"
 	sala := voz.NuevaSala(n)
 	ui := interfaz.Nueva(n, sala)
+	if entrar {
+		n.Consultar(func() {
+			if m := n.Salas().Mias(); len(m) > 0 {
+				ui.EntrarSala(m[0].ID())
+			}
+		})
+	}
 	go func() {
 		err := ui.Correr()
 		sala.Guardar()

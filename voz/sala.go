@@ -2,6 +2,7 @@ package voz
 
 import (
 	"errors"
+	"math"
 	"image"
 	"os"
 	"path/filepath"
@@ -36,6 +37,10 @@ type Sala struct {
 	comp     *Compuerta
 
 	// The Go devices in the channel: their voice goes by the relay tree over the data links (arbol.go).
+	nivelMio, nivelSala float32 // 0..1, for the room's signal meter
+	avisoNivel          time.Time
+	barras              [2]int
+
 	goPares map[string]bool
 	fuentes map[string]*Fuente
 	vistos  map[string]map[uint32]bool
@@ -228,6 +233,7 @@ func (s *Sala) alMicrofono(pcm []int16) {
 	}
 	anotar("microfono-enviado", pcm)
 	buf := make([]byte, 1500)
+	s.nivel(&s.nivelMio, float32(rms(pcm)/32768))
 	n, err := enc.Encode(pcm, buf)
 	if err != nil || n <= 0 {
 		return
@@ -303,8 +309,12 @@ func (s *Sala) mezclar(out []int16) {
 	}
 	s.mu.Unlock()
 	acc := make([]int32, len(out))
+	var maxNivel float32
 	for _, f := range fuentes {
 		fr := f.Siguiente()
+		if r := float32(rms(fr) / 32768); r > maxNivel {
+			maxNivel = r
+		}
 		for i := 0; i < len(fr) && i < len(acc); i++ {
 			acc[i] += int32(fr[i])
 		}
@@ -312,6 +322,7 @@ func (s *Sala) mezclar(out []int16) {
 	for i, v := range acc {
 		out[i] = limitar(float64(v))
 	}
+	s.nivel(&s.nivelSala, maxNivel)
 	anotar("parlante", out)
 	// What the speaker plays is the echo canceller's reference.
 	s.mu.Lock()
@@ -592,6 +603,41 @@ func (s *Sala) alSenal(from string, d nucleo.Msg) {
 		s.quitar(from)
 	}
 	s.n.OnCambio()
+}
+
+// Barras: lit bars out of 8 for a voice level, the app's _SignalMeter.lit (normal speech is 0.05-0.3; under the
+// voice room's speaking level, 0.03, nothing lights).
+func Barras(level float32) int {
+	if level < 0.03 {
+		return 0
+	}
+	return max(1, min(8, int(math.Ceil(float64(level*8*3)))))
+}
+
+// nivel keeps a level and tells the screen only when the lit bars change, at most every 150 ms (the meter moves
+// while someone talks and costs nothing in silence).
+func (s *Sala) nivel(dst *float32, v float32) {
+	s.mu.Lock()
+	*dst = v
+	b := [2]int{Barras(s.nivelSala), Barras(s.nivelMio)}
+	avisar := b != s.barras && time.Since(s.avisoNivel) > 150*time.Millisecond
+	if avisar {
+		s.barras, s.avisoNivel = b, time.Now()
+	}
+	s.mu.Unlock()
+	if avisar {
+		s.n.Hacer(func() { s.n.OnCambio() })
+	}
+}
+
+// Niveles: the room's loudest voice and mine (0..1).
+func (s *Sala) Niveles() (sala, mio float32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.hablando {
+		return s.nivelSala, 0
+	}
+	return s.nivelSala, s.nivelMio
 }
 
 // pares: the Go devices of the channel (screen tiles only mean something to them).

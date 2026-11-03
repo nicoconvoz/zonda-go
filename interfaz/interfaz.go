@@ -54,6 +54,7 @@ type Voz interface {
 	AlternarPantalla() error
 	Pantallas() map[string]image.Image
 	Medidas() string
+	Niveles() (sala, mio float32)
 }
 
 type App struct {
@@ -70,7 +71,7 @@ type App struct {
 	// widgets
 	nick, salaNombre, codigo, buscar, mensaje, canales   widget.Editor
 	hombre, mujer, elegirFoto, entrar                    widget.Clickable
-	tabs                                                 [4]widget.Clickable
+	tabs                                                 [5]widget.Clickable
 	gotching, wenas                                      widget.Clickable
 	crear, golpear, cancelarGolpe, buscarBtn             widget.Clickable
 	volver, copiar, cerrarSala, enviar, adjFoto, archivo widget.Clickable
@@ -84,6 +85,12 @@ type App struct {
 	aviso          string
 	avisoVoz       string
 	pantallaGrande string
+
+	// the room screen and the dialogs
+	salaTab, menuDe, canalElegido, subAjustes string
+	dialogo                                   string
+	editorDialogo                             widget.Editor
+	aceptarDialogo, cancelarDialogo           widget.Clickable
 }
 
 func Nueva(n *nucleo.Nodo, voz Voz) *App {
@@ -163,6 +170,7 @@ func (a *App) dibujar(gtx layout.Context) {
 	case pChat:
 		a.chatUI(gtx)
 	}
+	a.dialogoUI(gtx)
 }
 
 /* ---------- small pieces ---------- */
