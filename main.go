@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+	"sync"
 	"time"
 
 	"gioui.org/app"
 
+	"github.com/nicoconvoz/zonda/zondago/bandeja"
 	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/interfaz"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
@@ -57,15 +59,24 @@ func main() {
 			}
 		})
 	}
-	go func() {
-		err := ui.Correr()
-		sala.Guardar()
-		n.Consultar(n.Chau)
-		alm.Guardar()
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Exit(0)
-	}()
+	// Quitting for real (the tray menu, or the window gone): say goodbye, save, take the icon away.
+	var unaVez sync.Once
+	salir := func(err error) {
+		unaVez.Do(func() {
+			sala.Guardar()
+			n.Consultar(n.Chau)
+			alm.Guardar()
+			bandeja.Quitar()
+			if err != nil {
+				log.Fatal(err)
+			}
+			os.Exit(0)
+		})
+	}
+	// Next to the clock, as the app: closing the window hides it, the icon brings it back, its menu quits.
+	if err := bandeja.Arrancar(ui.Mostrar, func() { salir(nil) }); err != nil {
+		log.Print(err)
+	}
+	go func() { salir(ui.Correr()) }()
 	app.Main()
 }

@@ -3,7 +3,6 @@ package nucleo
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -376,19 +375,14 @@ func (t *Tablero) recibir(text string) {
 	}
 }
 
-// Relays lists the relays and whether each is open (for the Red screen).
-func (t *Tablero) Relays() []string {
+// Conectado: whether at least one board relay is open (for the Red screen, which names none of them).
+func (t *Tablero) Conectado() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	var out []string
-	for _, u := range relaysComunes[:3] {
-		if r := t.relays[u]; r != nil {
-			estado := "cerrado"
-			if r.abierto {
-				estado = "abierto"
-			}
-			out = append(out, strings.TrimPrefix(u, "wss://")+" · "+estado)
+	for _, r := range t.relays {
+		if r.abierto {
+			return true
 		}
 	}
-	return out
+	return false
 }

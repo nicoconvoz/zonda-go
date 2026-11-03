@@ -5,7 +5,6 @@ import (
 
 	"image"
 	"image/color"
-	"sort"
 	"strings"
 
 	"gioui.org/op/clip"
@@ -160,39 +159,21 @@ func (a *App) persona(gtx layout.Context, key, nombre string, on bool, extra ...
 	})
 }
 
+// red shows only what reveals nothing: whether Zonda is connected and how many links are open. No relay addresses,
+// no counters of how links are made, no key.
 func (a *App) red(gtx layout.Context) layout.Dimensions {
 	n := a.n
-	if a.clic("copiarclave").Clicked(gtx) {
-		a.copiarTexto(gtx, n.Clave())
+	estado := "No conectado"
+	if n.Tablero.Conectado() || n.Red.Abiertos() > 0 {
+		estado = "Conectado"
 	}
 	items := []layout.Widget{
-		func(gtx layout.Context) layout.Dimensions { return a.titulo(gtx, "Tablero (Nostr)") },
+		func(gtx layout.Context) layout.Dimensions { return a.regla(gtx, "Red", "") },
+		func(gtx layout.Context) layout.Dimensions { return a.titulo(gtx, estado) },
+		func(gtx layout.Context) layout.Dimensions {
+			return a.texto(gtx, fmt.Sprintf("Enlaces por Internet: %d", n.Red.Abiertos()), tinta)
+		},
 	}
-	for _, r := range n.Tablero.Relays() {
-		r := r
-		items = append(items, func(gtx layout.Context) layout.Dimensions { return a.texto(gtx, r, tinta) })
-	}
-	items = append(items, func(gtx layout.Context) layout.Dimensions {
-		return a.titulo(gtx, fmt.Sprintf("Enlaces por Internet: %d", n.Red.Abiertos()))
-	})
-	estad := func(m map[string]int) {
-		var ks []string
-		for k := range m {
-			ks = append(ks, k)
-		}
-		sort.Strings(ks)
-		for _, k := range ks {
-			s := fmt.Sprintf("%s: %d", k, m[k])
-			items = append(items, func(gtx layout.Context) layout.Dimensions { return a.texto(gtx, s, tinta) })
-		}
-	}
-	items = append(items, func(gtx layout.Context) layout.Dimensions { return a.chico(gtx, "Cómo se arman los enlaces") })
-	estad(n.Red.Stats)
-	estad(n.Tablero.Stats)
-	items = append(items, func(gtx layout.Context) layout.Dimensions {
-		return fila(gtx, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return a.chico(gtx, "Tu clave: "+n.Clave()) }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.botonSuave(gtx, a.clic("copiarclave"), "Copiar") }))
-	})
 	return a.listado(gtx, &a.principal, items)
 }
 

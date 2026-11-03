@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"os"
 	"strings"
 
 	"gioui.org/font"
@@ -19,11 +18,11 @@ import (
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
-/* ---------- the shell (app/shell.dart): the bar with the four sections ---------- */
+/* ---------- the shell (app/shell.dart): the bar with the three sections ---------- */
 
-// secciones: app/sections.dart, in its order, without Chat: private conversations open from Usuarios or a room.
+// secciones: app/sections.dart, in its order, without Chat (private conversations open from a room) and without Apagar (quitting is in the tray icon's menu).
 var secciones = []struct{ id, icono, nombre string }{
-	{"salas", "salas", "Salas"}, {"usuarios", "usuarios", "Usuarios"}, {"ajustes", "gear", "Configuración"}, {"apagar", "power", "Apagar"},
+	{"salas", "salas", "Salas"}, {"usuarios", "usuarios", "Usuarios"}, {"ajustes", "gear", "Configuración"},
 }
 
 func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
@@ -40,8 +39,6 @@ func (a *App) principalUI(gtx layout.Context) layout.Dimensions {
 				return a.usuarios(gtx)
 			case "ajustes":
 				return a.ajustes(gtx)
-			case "apagar":
-				return a.apagar(gtx)
 			}
 			return a.salas(gtx)
 		}),
@@ -393,23 +390,4 @@ func (a *App) ajustes(gtx layout.Context) layout.Dimensions {
 				return a.estilo(gtx)
 			})
 		}))
-}
-
-/* ---------- Apagar ---------- */
-
-func (a *App) apagar(gtx layout.Context) layout.Dimensions {
-	if a.clic("salir").Clicked(gtx) {
-		a.n.Chau()
-		a.n.Alm.Guardar()
-		os.Exit(0)
-	}
-	return layout.Inset{Top: unit.Dp(24), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return columna(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return a.vacio(gtx, "power", "Al salir, Zonda avisa que te vas y deja de estar conectado. Tus salas y chats quedan guardados en este dispositivo.")
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return a.botonAncho(gtx, a.clic("salir"), "power", "Salir de Zonda", true)
-			}))
-	})
 }

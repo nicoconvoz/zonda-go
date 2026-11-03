@@ -30,6 +30,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/explorer"
 
+	"github.com/nicoconvoz/zonda/zondago/bandeja"
 	"github.com/nicoconvoz/zonda/zondago/diag"
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
@@ -60,6 +61,7 @@ type Voz interface {
 
 type App struct {
 	W     *app.Window
+	hwnd  uintptr // the window on Windows, to hide it in the tray and bring it back
 	th    *material.Theme
 	n     *nucleo.Nodo
 	expl  *explorer.Explorer
@@ -72,7 +74,7 @@ type App struct {
 	// widgets
 	nick, salaNombre, codigo, mensaje, canales           widget.Editor
 	hombre, mujer, elegirFoto, entrar                    widget.Clickable
-	tabs                                                 [4]widget.Clickable
+	tabs                                                 [3]widget.Clickable
 	gotching, wenas                                      widget.Clickable
 	crear, golpear, cancelarGolpe                        widget.Clickable
 	volver, copiar, cerrarSala, enviar, adjFoto, archivo widget.Clickable
@@ -144,6 +146,9 @@ func (a *App) clic(id string) *widget.Clickable {
 	return c
 }
 
+// Mostrar brings the window back from the tray.
+func (a *App) Mostrar() { bandeja.Mostrar(a.hwnd) }
+
 // Correr is the window's event loop.
 func (a *App) Correr() error {
 	diag.Nombrar("interfaz")
@@ -151,6 +156,17 @@ func (a *App) Correr() error {
 		e := a.W.Event()
 		a.expl.ListenEvents(e)
 		switch e := e.(type) {
+		case app.Win32ViewEvent:
+			if e.HWND != 0 {
+				a.hwnd = e.HWND
+				bandeja.PonerIcono(e.HWND)
+			}
+		case *app.ClosingEvent:
+			// As the app does: closing only hides the window; Zonda stays next to the clock, linked.
+			if a.hwnd != 0 {
+				e.Abort()
+				bandeja.Esconder(a.hwnd)
+			}
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:
