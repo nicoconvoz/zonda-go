@@ -195,3 +195,15 @@ func cadenaDart(b *strings.Builder, s string) {
 	}
 	b.WriteByte('"')
 }
+
+// ComoObjeto and ComoLista read a stored or received value of a shape that may not be the expected one: anything else
+// reads as empty, never a crash (a list saved empty comes back as null).
+func ComoObjeto(v any) Msg {
+	m, _ := v.(map[string]any)
+	return m
+}
+
+func ComoLista(v any) []any {
+	l, _ := v.([]any)
+	return l
+}

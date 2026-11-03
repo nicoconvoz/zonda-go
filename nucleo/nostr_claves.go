@@ -48,7 +48,7 @@ func EventoNostr(c *ClavesNostr, kind int, tags [][]string, content string, crea
 func idEvento(e Msg) string {
 	var b strings.Builder
 	tags := [][]string{}
-	for _, t := range e["tags"].([]any) {
+	for _, t := range ComoLista(e["tags"]) {
 		tags = append(tags, Textos(t))
 	}
 	ca, _ := Entero(e, "created_at")

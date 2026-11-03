@@ -143,9 +143,9 @@ func (n *Nodo) guardarChats() {
 
 func (n *Nodo) cargarChats() {
 	if v, ok := n.Alm.LeerJSON("chats"); ok {
-		for k, ls := range v.(map[string]any) {
-			for _, x := range ls.([]any) {
-				o := x.(map[string]any)
+		for k, ls := range ComoObjeto(v) {
+			for _, x := range ComoLista(ls) {
+				o := ComoObjeto(x)
 				at, _ := Entero(o, "at")
 				n.Chats[k] = append(n.Chats[k], LineaChat{Texto: Interpolar(o["t"]), Mia: o["me"] == true, At: at, Foto: Interpolar(o["ph"]), ID: Interpolar(o["id"]), Estado: Interpolar(o["st"])})
 			}
@@ -157,7 +157,7 @@ func (n *Nodo) cargarChats() {
 		}
 	}
 	if v, ok := n.Alm.LeerJSON("nombres"); ok {
-		for k, nm := range v.(map[string]any) {
+		for k, nm := range ComoObjeto(v) {
 			n.nombres[k] = Interpolar(nm)
 		}
 	}

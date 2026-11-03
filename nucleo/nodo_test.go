@@ -114,3 +114,21 @@ func TestInternetLinkOpensWithWebRTC(t *testing.T) {
 	esperar(t, b, "mensaje privado", func() bool { return len(b.Chats[a.Clave()]) == 1 })
 	esperar(t, a, "confirmado", func() bool { return a.Chats[b.Clave()][0].Estado == "ok" })
 }
+
+// A room whose requests were all answered is saved with an empty list, and the device must open again.
+func TestReopensAfterEveryRequestWasAnswered(t *testing.T) {
+	dir := t.TempDir()
+	alm, _ := AbrirAlmacen(dir)
+	n := NuevoNodo(alm)
+	n.SoloLocal = true
+	n.CrearCuenta("Ana", "f", nil)
+	c := n.Salas().Crear("Sala")
+	n.Salas().pedidos[c.ID] = []Pedido{{Clave: "x", Nick: "X", At: 1}}
+	n.Salas().Rechazar(c.ID, "x")
+	alm.Guardar()
+	alm2, _ := AbrirAlmacen(dir)
+	n2 := NuevoNodo(alm2)
+	if n2.Salas().Libro(c.ID) == nil {
+		t.Fatal("la sala no volvió")
+	}
+}

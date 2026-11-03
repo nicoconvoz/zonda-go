@@ -509,7 +509,7 @@ func (s *Salas) guardar() {
 	}
 	req := Msg{}
 	for id, l := range s.pedidos {
-		var out []any
+		out := []any{}
 		for _, p := range l {
 			out = append(out, Msg{"key": p.Clave, "nick": p.Nick, "at": p.At})
 		}
@@ -529,15 +529,15 @@ func (s *Salas) guardar() {
 func (s *Salas) cargar() {
 	a := s.n.Alm
 	if v, ok := a.LeerJSON("prooms"); ok {
-		for id, x := range v.(map[string]any) {
-			o, _ := x.(map[string]any)
+		for id, x := range ComoObjeto(v) {
+			o := ComoObjeto(x)
 			b := libroDeLineas(Textos(o["lines"]))
 			if b == nil {
 				continue
 			}
 			s.libros[id] = b
 			s.llaves[id] = map[int64][]byte{}
-			ks, _ := o["keys"].(map[string]any)
+			ks := ComoObjeto(o["keys"])
 			for e, k := range ks {
 				var ep int64
 				fmt.Sscan(e, &ep)
@@ -548,9 +548,9 @@ func (s *Salas) cargar() {
 		}
 	}
 	if v, ok := a.LeerJSON("prooms.req"); ok {
-		for id, l := range v.(map[string]any) {
-			for _, x := range l.([]any) {
-				o, _ := x.(map[string]any)
+		for id, l := range ComoObjeto(v) {
+			for _, x := range ComoLista(l) {
+				o := ComoObjeto(x)
 				at, _ := Entero(o, "at")
 				s.pedidos[id] = append(s.pedidos[id], Pedido{Interpolar(o["key"]), Interpolar(o["nick"]), at})
 			}
