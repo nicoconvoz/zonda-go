@@ -2,8 +2,8 @@ package voz
 
 import (
 	"errors"
-	"math"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -376,6 +376,8 @@ func (s *Sala) nuevaConexion(peer string) (*conexion, error) {
 		pc.AddTrack(s.pista)
 	}
 	s.mu.Unlock()
+	// Sharing already: a member who arrives now gets the screen in the first offer or answer.
+	s.pantalla.agregar(pc)
 	// A connection not up in 12 s lost a signal on the way: dropped, and one more hello.
 	time.AfterFunc(12*time.Second, func() {
 		s.mu.Lock()
@@ -638,6 +640,29 @@ func (s *Sala) Niveles() (sala, mio float32) {
 		return s.nivelSala, 0
 	}
 	return s.nivelSala, s.nivelMio
+}
+
+// conexionesConectadas: the media connections (members on the app) that are up.
+func (s *Sala) conexionesConectadas() map[string]*conexion {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := map[string]*conexion{}
+	for k, c := range s.pcs {
+		if c.conectada && c.pc != nil {
+			out[k] = c
+		}
+	}
+	return out
+}
+
+// renegociar sends a new offer on an open connection (a track added or removed), as the app does with v-reoffer.
+func (s *Sala) renegociar(peer string, c *conexion) {
+	canal := s.Canal()
+	o, err := c.pc.CreateOffer(nil)
+	if err != nil || c.pc.SetLocalDescription(o) != nil {
+		return
+	}
+	s.senal(peer, nucleo.Msg{"kind": "v-reoffer", "room": canal, "sdp": c.pc.LocalDescription().SDP})
 }
 
 // pares: the Go devices of the channel (screen tiles only mean something to them).

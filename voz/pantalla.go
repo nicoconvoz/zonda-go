@@ -14,24 +14,25 @@ import (
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
-	"golang.org/x/image/vp8"
+	"github.com/pion/webrtc/v4/pkg/media"
 
 	"github.com/nicoconvoz/zonda/zondago/nucleo"
 )
 
-// The screen, the way RDP and VNC send it: a shared screen is mostly still, so only the tiles that changed travel,
-// each one a JPEG (standard library), as a sealed signal to each member of the voice channel. A device that just
-// connected gets the whole screen once.
+// The screen, the way the web shares it: captured, converted and scaled by libyuv, encoded in VP8 by libvpx (the
+// components libwebrtc uses, video_windows.go) and sent as a video track on each member's connection, which is
+// renegotiated to carry it, as the app does. The app's screen arrives the same way and is decoded whole by libvpx.
 //
-// A screen shared from the Flutter app arrives as VP8 video; Go has no VP8 encoder or full decoder in pure Go, so
-// only its key frames are decoded (golang.org/x/image/vp8 decodes key frames), asked for once a second: about one
-// frame per second.
+// Between Go devices (no media connection: the tree) the screen still travels as JPEG tiles of what changed.
 
 const (
-	lado        = 64 // tile side, pixels
-	anchoMax    = 1280
-	cadaCaptura = 300 * time.Millisecond // criterion, not a measurement: about 3 frames a second while sharing
-	calidad     = 70
+	lado     = 64 // tile side, pixels
+	anchoMax = 1280
+	// Criterion, not a measurement: 5 frames a second, what a screen of text and windows needs. Measured on the
+	// Captain's computer: a capture takes about 30 ms and a VP8 frame 6 ms, so sharing costs about 18 % of one core.
+	cadaCaptura  = 200 * time.Millisecond
+	kbpsPantalla = 1500
+	calidad      = 70
 )
 
 type pantalla struct {
@@ -45,10 +46,53 @@ type pantalla struct {
 	nuevos      map[string]bool // who must get the whole screen
 
 	ajenas map[string]*image.RGBA
+
+	// The VP8 side: the video track every connection carries while sharing, and its encoder.
+	pista      *webrtc.TrackLocalStaticSample
+	cod        *CodificadorVP8
+	envios     map[*webrtc.PeerConnection]*webrtc.RTPSender
+	pedirClave bool
 }
 
 func nuevaPantalla(s *Sala) *pantalla {
-	return &pantalla{s: s, nuevos: map[string]bool{}, ajenas: map[string]*image.RGBA{}}
+	return &pantalla{s: s, nuevos: map[string]bool{}, ajenas: map[string]*image.RGBA{}, envios: map[*webrtc.PeerConnection]*webrtc.RTPSender{}}
+}
+
+var vp8Pantalla = webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeVP8, ClockRate: 90000}
+
+// agregar puts the screen's track on a connection and keeps reading its feedback: a picture loss asks for a key frame.
+func (p *pantalla) agregar(pc *webrtc.PeerConnection) bool {
+	p.mu.Lock()
+	pista := p.pista
+	if pista == nil || p.envios[pc] != nil {
+		p.mu.Unlock()
+		return false
+	}
+	p.mu.Unlock()
+	snd, err := pc.AddTrack(pista)
+	if err != nil {
+		return false
+	}
+	p.mu.Lock()
+	p.envios[pc] = snd
+	p.mu.Unlock()
+	go func() {
+		for {
+			pkts, _, err := snd.ReadRTCP()
+			if err != nil {
+				return
+			}
+			for _, k := range pkts {
+				switch k.(type) {
+				case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
+					p.mu.Lock()
+					p.pedirClave = true
+					p.mu.Unlock()
+				}
+			}
+		}
+	}()
+	return true
 }
 
 func (p *pantalla) compartiendo() bool {
@@ -65,13 +109,31 @@ func (p *pantalla) alternar() error {
 	if p.s.Canal() == "" {
 		return errSinCanal
 	}
-	if _, err := capturar(); err != nil {
+	img, err := capturar()
+	if err != nil {
 		return errors.New("no se pudo capturar la pantalla")
+	}
+	b := reducir(img).Bounds()
+	cod, err := NuevoCodificadorVP8(b.Dx(), b.Dy(), int(time.Second/cadaCaptura), kbpsPantalla)
+	if err != nil {
+		return errors.New("no cargó el video de WebRTC: " + err.Error())
+	}
+	pista, err := webrtc.NewTrackLocalStaticSample(vp8Pantalla, "video", "zonda-pantalla")
+	if err != nil {
+		cod.Cerrar()
+		return err
 	}
 	p.mu.Lock()
 	p.on, p.parada, p.huellas = true, make(chan struct{}), nil
+	p.pista, p.cod, p.pedirClave = pista, cod, true
 	parada := p.parada
 	p.mu.Unlock()
+	// Every media connection now carries the screen: renegotiated with a new offer, as the app does.
+	for peer, c := range p.s.conexionesConectadas() {
+		if p.agregar(c.pc) {
+			go p.s.renegociar(peer, c)
+		}
+	}
 	go p.bucle(parada)
 	return nil
 }
@@ -84,11 +146,25 @@ func (p *pantalla) parar() {
 	}
 	p.on = false
 	close(p.parada)
+	envios, cod := p.envios, p.cod
+	p.envios, p.pista, p.cod = map[*webrtc.PeerConnection]*webrtc.RTPSender{}, nil, nil
 	p.mu.Unlock()
 	canal := p.s.Canal()
 	for _, k := range p.s.pares() {
 		p.s.senal(k, nucleo.Msg{"kind": "v-unshare", "room": canal})
 	}
+	// The track leaves every connection (renegotiated) and the others are told the screen stopped.
+	for peer, c := range p.s.conexionesConectadas() {
+		if snd := envios[c.pc]; snd != nil {
+			c.pc.RemoveTrack(snd)
+			go p.s.renegociar(peer, c)
+		}
+		p.s.senal(peer, nucleo.Msg{"kind": "v-unshare", "room": canal})
+	}
+	go func() {
+		time.Sleep(cadaCaptura)
+		cod.Cerrar()
+	}()
 }
 
 func (p *pantalla) alConectar(peer string) {
@@ -107,7 +183,12 @@ func (p *pantalla) bucle(parada chan struct{}) {
 	t := time.NewTicker(cadaCaptura)
 	defer t.Stop()
 	for {
-		p.enviarCambios()
+		if img, err := capturar(); err == nil {
+			p.enviarVideo(img)
+			if len(p.s.pares()) > 0 {
+				p.enviarCambios(img)
+			}
+		}
 		select {
 		case <-parada:
 			return
@@ -134,12 +215,24 @@ func reducir(src *image.RGBA) *image.RGBA {
 	return dst
 }
 
-// enviarCambios captures, finds the tiles whose fingerprint changed, and sends them (all of them to newcomers).
-func (p *pantalla) enviarCambios() {
-	img, err := capturar()
-	if err != nil {
+// enviarVideo encodes one frame in VP8 and writes it on the screen's track (a key frame when someone lost the picture).
+func (p *pantalla) enviarVideo(img *image.RGBA) {
+	p.mu.Lock()
+	cod, pista, clave := p.cod, p.pista, p.pedirClave
+	p.pedirClave = false
+	p.mu.Unlock()
+	if cod == nil || pista == nil {
 		return
 	}
+	vp8, _, err := cod.Cuadro(img, clave, int(cadaCaptura/time.Millisecond))
+	if err != nil || len(vp8) == 0 {
+		return
+	}
+	pista.WriteSample(media.Sample{Data: vp8, Duration: cadaCaptura})
+}
+
+// enviarCambios finds the tiles whose fingerprint changed and sends them to the Go devices (all of them to newcomers).
+func (p *pantalla) enviarCambios(img *image.RGBA) {
 	img = reducir(img)
 	w, h := img.Bounds().Dx(), img.Bounds().Dy()
 	cols, filas := (w+lado-1)/lado, (h+lado-1)/lado
@@ -244,23 +337,27 @@ func (p *pantalla) vistas() map[string]image.Image {
 	return out
 }
 
-// recibirVideo decodes the key frames of a VP8 screen from the app, asking for one a second (PLI).
+// recibirVideo decodes a VP8 screen from the app whole with libvpx; when the decoder loses its reference (a packet
+// lost), it asks for a key frame (PLI), at most once a second.
 func (p *pantalla) recibirVideo(peer string, pc *webrtc.PeerConnection, t *webrtc.TrackRemote) {
 	if t.Codec().MimeType != webrtc.MimeTypeVP8 {
 		return
 	}
-	pedir := time.NewTicker(time.Second)
-	defer pedir.Stop()
-	go func() {
-		for range pedir.C {
-			if pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(t.SSRC())}}) != nil {
-				return
-			}
+	dec, err := NuevoDecodificadorVP8()
+	if err != nil {
+		return
+	}
+	defer dec.Cerrar()
+	var ultimoPedido time.Time
+	pedir := func() {
+		if time.Since(ultimoPedido) > time.Second {
+			ultimoPedido = time.Now()
+			pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(t.SSRC())}})
 		}
-	}()
+	}
+	pedir()
 	var cuadro []byte
 	var vp codecs.VP8Packet
-	dec := vp8.NewDecoder()
 	for {
 		pk, _, err := t.ReadRTP()
 		if err != nil {
@@ -274,21 +371,20 @@ func (p *pantalla) recibirVideo(peer string, pc *webrtc.PeerConnection, t *webrt
 			cuadro = cuadro[:0]
 		}
 		cuadro = append(cuadro, payload...)
-		if !pk.Marker || len(cuadro) < 3 || cuadro[0]&1 != 0 { // bit 0 of the first byte: 0 = key frame
+		if !pk.Marker {
 			continue
 		}
-		dec.Init(bytes.NewReader(cuadro), len(cuadro))
-		if _, err := dec.DecodeFrameHeader(); err != nil {
-			continue
-		}
-		img, err := dec.DecodeFrame()
+		img, err := dec.Cuadro(cuadro)
+		cuadro = cuadro[:0]
 		if err != nil {
+			pedir()
 			continue
 		}
-		rgba := image.NewRGBA(img.Bounds())
-		draw.Draw(rgba, rgba.Bounds(), img, img.Bounds().Min, draw.Src)
+		if img == nil {
+			continue
+		}
 		p.mu.Lock()
-		p.ajenas[peer] = rgba
+		p.ajenas[peer] = img
 		p.mu.Unlock()
 		p.s.n.Hacer(func() { p.s.n.OnCambio() })
 	}

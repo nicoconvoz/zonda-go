@@ -26,7 +26,7 @@ type APM struct {
 var dllsAPM embed.FS
 
 // The load order matters only for the first one asked for; the rest are found next to it.
-var ordenDLL = []string{"libwinpthread-1.dll", "libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwebrtc-audio-processing-1-3.dll", "zapm.dll"}
+var ordenDLL = []string{"libwinpthread-1.dll", "libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwebrtc-audio-processing-1-3.dll", "zapm.dll", "zvid.dll"}
 
 // extraer writes the DLLs into a folder named by their fingerprint, so a new build never loads an old copy.
 func extraer() (string, error) {
@@ -63,17 +63,22 @@ var (
 
 const loadWithAlteredSearchPath = 0x8
 
-func cargar(dir string) (uintptr, error) {
-	var h uintptr
+var cargadas = map[string]uintptr{}
+
+// cargar loads every DLL of the folder once; the handle of the one asked for comes back.
+func cargar(dir, cual string) (uintptr, error) {
 	for _, n := range ordenDLL {
+		if cargadas[n] != 0 {
+			continue
+		}
 		p, _ := syscall.UTF16PtrFromString(filepath.Join(dir, n))
 		r, _, err := loadLibraryEx.Call(uintptr(unsafe.Pointer(p)), 0, loadWithAlteredSearchPath)
 		if r == 0 {
 			return 0, errors.New("no cargó " + n + ": " + err.Error())
 		}
-		h = r
+		cargadas[n] = r
 	}
-	return h, nil
+	return cargadas[cual], nil
 }
 
 func funcion(dll uintptr, nombre string) (uintptr, error) {
@@ -99,7 +104,7 @@ func cargarAPM() error {
 	dir, err := extraer()
 	if err == nil {
 		var dll uintptr
-		if dll, err = cargar(dir); err == nil {
+		if dll, err = cargar(dir, "zapm.dll"); err == nil {
 			for _, f := range []struct {
 				n string
 				p *uintptr
