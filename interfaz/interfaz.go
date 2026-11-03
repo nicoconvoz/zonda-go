@@ -69,11 +69,11 @@ type App struct {
 	chat  string // the contact on screen
 
 	// widgets
-	nick, salaNombre, codigo, buscar, mensaje, canales   widget.Editor
+	nick, salaNombre, codigo, mensaje, canales           widget.Editor
 	hombre, mujer, elegirFoto, entrar                    widget.Clickable
 	tabs                                                 [4]widget.Clickable
 	gotching, wenas                                      widget.Clickable
-	crear, golpear, cancelarGolpe, buscarBtn             widget.Clickable
+	crear, golpear, cancelarGolpe                        widget.Clickable
 	volver, copiar, cerrarSala, enviar, adjFoto, archivo widget.Clickable
 	hablar, salirVoz, compartir, fijarCanales            widget.Clickable
 	lista, miembros, principal                           widget.List
@@ -86,6 +86,7 @@ type App struct {
 	aviso          string
 	avisoVoz       string
 	pantallaGrande string
+	perfil         perfilEdicion
 
 	// the room screen and the dialogs
 	salaTab, menuDe, canalElegido, subAjustes string
@@ -102,7 +103,7 @@ func Nueva(n *nucleo.Nodo, voz Voz) *App {
 	a.th = material.NewTheme()
 	a.th.Shaper = text.NewShaper(text.WithCollection(append(coleccionFuentes(), gofont.Collection()...)))
 	a.aplicarPiel(n.Alm.Leer("piel"))
-	for _, e := range []*widget.Editor{&a.nick, &a.salaNombre, &a.codigo, &a.buscar, &a.canales} {
+	for _, e := range []*widget.Editor{&a.nick, &a.salaNombre, &a.codigo, &a.canales} {
 		e.SingleLine, e.Submit = true, true
 	}
 	a.mensaje.Submit = true

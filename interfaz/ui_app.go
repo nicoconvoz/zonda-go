@@ -364,22 +364,6 @@ func (a *App) filaPersona(gtx layout.Context, c *widget.Clickable, k, sub string
 	})
 }
 
-/* ---------- Usuarios: the magnifier and the contacts ---------- */
-
-func (a *App) usuarios(gtx layout.Context) layout.Dimensions {
-	return columna(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(8), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return fila(gtx, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return a.cuadrado(gtx, a.clic("sub:usuarios"), "usuarios", true)
-				}))
-			})
-		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, a.gente)
-		}))
-}
-
 /* ---------- Configuración: the network and the style ---------- */
 
 func (a *App) ajustes(gtx layout.Context) layout.Dimensions {
