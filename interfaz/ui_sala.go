@@ -565,11 +565,13 @@ func (a *App) listaMiembros(gtx layout.Context, ms []nucleo.Miembro, b *nucleo.L
 					} else {
 						hijos = append(hijos, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return a.clic("menu:"+m.Clave).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return layout.Inset{Left: unit.Dp(10), Right: unit.Dp(10), Top: unit.Dp(4), Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-									l := material.Label(a.th, unit.Sp(18), "⋯")
-									l.Color, l.Font.Weight = ink, font.Bold
-									return l.Layout(gtx)
-								})
+								// "⋯" drawn as three dots: the skins' fonts have no such glyph.
+								w, h, r := dp(gtx, 40), dp(gtx, 36), dp(gtx, 2)
+								for k := -1; k <= 1; k++ {
+									cx, cy := w/2+k*dp(gtx, 6), h/2
+									paint.FillShape(gtx.Ops, ink, clip.Ellipse{Min: image.Pt(cx-r, cy-r), Max: image.Pt(cx+r, cy+r)}.Op(gtx.Ops))
+								}
+								return layout.Dimensions{Size: image.Pt(w, h)}
 							})
 						}))
 					}

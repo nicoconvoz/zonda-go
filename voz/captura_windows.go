@@ -4,6 +4,7 @@ package voz
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"syscall"
 	"unsafe"
@@ -18,10 +19,9 @@ var (
 	releaseDC        = user32.NewProc("ReleaseDC")
 	getSystemMetrics = user32.NewProc("GetSystemMetrics")
 	createCompatDC   = gdi32.NewProc("CreateCompatibleDC")
-	createCompatBmp  = gdi32.NewProc("CreateCompatibleBitmap")
 	selectObject     = gdi32.NewProc("SelectObject")
 	bitBlt           = gdi32.NewProc("BitBlt")
-	getDIBits        = gdi32.NewProc("GetDIBits")
+	createDIBSection = gdi32.NewProc("CreateDIBSection")
 	deleteObject     = gdi32.NewProc("DeleteObject")
 	deleteDC         = gdi32.NewProc("DeleteDC")
 )
@@ -35,6 +35,8 @@ type bitmapInfoHeader struct {
 	ClrUsed, ClrImportant        uint32
 }
 
+// capturar draws the screen into a DIB section of its own (memory this program can read directly) and copies it out:
+// GetDIBits on a compatible bitmap failed silently on the Captain's computer.
 func capturar() (*image.RGBA, error) {
 	w, _, _ := getSystemMetrics.Call(0)
 	h, _, _ := getSystemMetrics.Call(1)
@@ -47,23 +49,32 @@ func capturar() (*image.RGBA, error) {
 	}
 	defer releaseDC.Call(0, scr)
 	mem, _, _ := createCompatDC.Call(scr)
+	if mem == 0 {
+		return nil, errors.New("sin contexto en memoria")
+	}
 	defer deleteDC.Call(mem)
-	bmp, _, _ := createCompatBmp.Call(scr, w, h)
-	defer deleteObject.Call(bmp)
-	old, _, _ := selectObject.Call(mem, bmp)
-	const srccopy = 0x00CC0020
-	bitBlt.Call(mem, 0, 0, w, h, scr, 0, 0, srccopy)
-	selectObject.Call(mem, old)
 	hdr := bitmapInfoHeader{Width: int32(w), Height: -int32(h), Planes: 1, BitCount: 32}
 	hdr.Size = uint32(unsafe.Sizeof(hdr))
-	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
-	if r, _, _ := getDIBits.Call(mem, bmp, 0, h, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(unsafe.Pointer(&hdr)), 0); r == 0 {
-		return nil, errors.New("no se pudo leer la pantalla")
+	var bits unsafe.Pointer
+	bmp, _, e := createDIBSection.Call(scr, uintptr(unsafe.Pointer(&hdr)), 0, uintptr(unsafe.Pointer(&bits)), 0, 0)
+	if bmp == 0 || bits == nil {
+		return nil, fmt.Errorf("no se pudo preparar la captura: %v", e)
 	}
+	defer deleteObject.Call(bmp)
+	old, _, _ := selectObject.Call(mem, bmp)
+	const srccopy, captureblt = 0x00CC0020, 0x40000000
+	r, _, e := bitBlt.Call(mem, 0, 0, w, h, scr, 0, 0, srccopy|captureblt)
+	selectObject.Call(mem, old)
+	if r == 0 {
+		return nil, fmt.Errorf("no se pudo copiar la pantalla: %v", e)
+	}
+	n := int(w) * int(h) * 4
+	src := unsafe.Slice((*byte)(bits), n)
+	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
 	// GDI gives BGRA: swap to RGBA, opaque.
 	p := img.Pix
-	for i := 0; i < len(p); i += 4 {
-		p[i], p[i+2], p[i+3] = p[i+2], p[i], 0xff
+	for i := 0; i < n; i += 4 {
+		p[i], p[i+1], p[i+2], p[i+3] = src[i+2], src[i+1], src[i], 0xff
 	}
 	return img, nil
 }
