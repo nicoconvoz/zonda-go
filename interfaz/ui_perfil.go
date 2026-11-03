@@ -23,11 +23,12 @@ var rojo = hx(0xFFE5383B)
 
 // perfilEdicion is "Editar mis datos" while open: the same three things the sign-up asks.
 type perfilEdicion struct {
-	abierto bool
-	apodo   widget.Editor
-	genero  string
-	foto    []byte // a new photo chosen, not saved yet
-	err     string
+	abierto   bool
+	apodo     widget.Editor
+	genero    string
+	foto      []byte // a new photo chosen, not saved yet
+	claveFoto string // its fingerprint, computed once when chosen
+	err       string
 }
 
 // usuarios is the profile: my card, and the other profiles in reach; my card opens "Editar mis datos".
@@ -90,7 +91,10 @@ var problemasApodo = map[string]string{
 func (a *App) editarPerfil(gtx layout.Context) layout.Dimensions {
 	p := &a.perfil
 	if a.clic("perfil:foto").Clicked(gtx) || a.clic("perfil:fotoTxt").Clicked(gtx) {
-		a.elegirArchivo([]string{".jpg", ".jpeg", ".png"}, func(_ string, b []byte) { p.foto = b })
+		a.elegirArchivo([]string{".jpg", ".jpeg", ".png"}, func(_ string, b []byte) {
+			h := sha256.Sum256(b)
+			p.foto, p.claveFoto = b, "nueva:"+hex.EncodeToString(h[:8])
+		})
 	}
 	for _, g := range []string{"m", "f"} {
 		if a.clic("perfil:g:" + g).Clicked(gtx) {
@@ -171,10 +175,9 @@ func (a *App) fotoPerfil(gtx layout.Context, lado float32) layout.Dimensions {
 	var op paint.ImageOp
 	ok := false
 	if p.foto != nil {
-		h := sha256.Sum256(p.foto)
-		op, ok = a.imagen("nueva:"+hex.EncodeToString(h[:8]), p.foto)
+		op, ok = a.imagen(p.claveFoto, func() []byte { return p.foto })
 	} else if h := a.n.MiFoto; h != "" {
-		op, ok = a.imagen(h, a.n.Foto(h))
+		op, ok = a.imagen(h, func() []byte { return a.n.Foto(h) })
 	}
 	if ok {
 		return widget.Image{Src: op, Fit: widget.Cover}.Layout(gtx)

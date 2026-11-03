@@ -489,7 +489,7 @@ func (a *App) cuerpoLinea(gtx layout.Context, i int, l nucleo.LineaSala, ink col
 				return layout.Dimensions{}
 			}
 			return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return a.foto(gtx, fmt.Sprintf("%s|%d|%s", l.Sala, l.Epoca, l.Foto), n.Adjunto(l, l.Foto), 240)
+				return a.foto(gtx, fmt.Sprintf("%s|%d|%s", l.Sala, l.Epoca, l.Foto), func() []byte { return n.Adjunto(l, l.Foto) }, 240)
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {

@@ -324,11 +324,14 @@ func (a *App) copiarTexto(gtx layout.Context, s string) {
 	a.aviso = "Copiado."
 }
 
-// imagen: a decoded photo by fingerprint, kept once decoded (the screen asks again on every frame).
-func (a *App) imagen(h string, b []byte) (paint.ImageOp, bool) {
+// imagen: a decoded photo by fingerprint, kept once decoded. The screen asks again on every frame, so the bytes come
+// from cargar, called only when the photo is not decoded yet: reading the file each frame cost 112 MB of reads in a
+// few minutes of a call.
+func (a *App) imagen(h string, cargar func() []byte) (paint.ImageOp, bool) {
 	if op, ok := a.imagenes[h]; ok {
 		return op, true
 	}
+	b := cargar()
 	if b == nil {
 		return paint.ImageOp{}, false
 	}
@@ -341,8 +344,8 @@ func (a *App) imagen(h string, b []byte) (paint.ImageOp, bool) {
 	return op, true
 }
 
-func (a *App) foto(gtx layout.Context, h string, b []byte, alto float32) layout.Dimensions {
-	op, ok := a.imagen(h, b)
+func (a *App) foto(gtx layout.Context, h string, cargar func() []byte, alto float32) layout.Dimensions {
+	op, ok := a.imagen(h, cargar)
 	if !ok {
 		return a.chico(gtx, "🖼 cargando foto…")
 	}
@@ -357,7 +360,7 @@ func (a *App) avatar(gtx layout.Context, key, nombre string, dp float32) layout.
 	gtx.Constraints = layout.Exact(image.Pt(s, s))
 	defer clip.Ellipse{Max: image.Pt(s, s)}.Push(gtx.Ops).Pop()
 	if h := a.n.FotoDe(key); h != "" {
-		if op, ok := a.imagen(h, a.n.Foto(h)); ok {
+		if op, ok := a.imagen(h, func() []byte { return a.n.Foto(h) }); ok {
 			return widget.Image{Src: op, Fit: widget.Cover}.Layout(gtx)
 		}
 		a.n.PedirFoto(h, key)

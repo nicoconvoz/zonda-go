@@ -270,11 +270,13 @@ func (a *App) chatUI(gtx layout.Context) layout.Dimensions {
 											if l.Foto == "" {
 												return layout.Dimensions{}
 											}
-											b := n.Foto(l.Foto)
-											if b == nil && !l.Mia {
-												n.PedirFoto(l.Foto, k)
-											}
-											return a.foto(gtx, l.Foto, b, 240)
+											return a.foto(gtx, l.Foto, func() []byte {
+												b := n.Foto(l.Foto)
+												if b == nil && !l.Mia {
+													n.PedirFoto(l.Foto, k)
+												}
+												return b
+											}, 240)
 										}),
 										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 											if l.Texto == "" {
