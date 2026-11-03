@@ -8,5 +8,11 @@ Remove-Item dist\zondago.viejo.exe -ErrorAction SilentlyContinue
 if (Test-Path dist\zondago.exe) { Rename-Item dist\zondago.exe zondago.viejo.exe }
 go build -ldflags "-H windowsgui -s -w" -o dist\zondago.exe .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Copy-Item voz\apm_dlls\*.dll dist\ -Force
+# Only the libraries that changed are copied: one the open window has loaded cannot be overwritten.
+foreach ($dll in Get-ChildItem voz\apm_dlls\*.dll) {
+    $destino = Join-Path dist $dll.Name
+    if (-not (Test-Path $destino) -or (Get-FileHash $destino).Hash -ne (Get-FileHash $dll.FullName).Hash) {
+        Copy-Item $dll.FullName $destino -Force
+    }
+}
 Get-ChildItem dist | Select-Object Name, Length
