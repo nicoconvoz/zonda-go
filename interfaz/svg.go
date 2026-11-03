@@ -10,7 +10,6 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -263,37 +262,14 @@ func camino(d string) ([][]f32.Point, []bool) {
 	return segs, cerr
 }
 
-// icono draws a named icon at dp size in color c.
+// icono draws a named icon at dp size in color c: the image drawn once for that size and color (icono_raster.go).
 func icono(gtx layout.Context, nombre string, dp float32, c color.NRGBA) layout.Dimensions {
 	s := gtx.Dp(unit.Dp(dp))
-	esc := float32(s) / 24
-	for _, t := range leerIcono(nombre) {
-		for k, seg := range t.segs {
-			var pa clip.Path
-			pa.Begin(gtx.Ops)
-			pa.MoveTo(seg[0].Mul(esc))
-			for _, q := range seg[1:] {
-				pa.LineTo(q.Mul(esc))
-			}
-			if t.cerrado[k] {
-				pa.Close()
-			}
-			spec := pa.End()
-			if t.relleno {
-				paint.FillShape(gtx.Ops, c, clip.Outline{Path: spec}.Op())
-			} else {
-				paint.FillShape(gtx.Ops, c, clip.Stroke{Path: spec, Width: t.ancho * esc}.Op())
-			}
-			// Round caps: a dot at each open end (the drawings are made with round line caps).
-			if !t.cerrado[k] && !t.relleno {
-				for _, q := range []f32.Point{seg[0], seg[len(seg)-1]} {
-					r := t.ancho * esc / 2
-					st := op.Offset(q.Mul(esc).Sub(f32.Pt(r, r)).Round()).Push(gtx.Ops)
-					paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: f32.Pt(2*r, 2*r).Round()}.Op(gtx.Ops))
-					st.Pop()
-				}
-			}
-		}
+	if s <= 0 {
+		return layout.Dimensions{}
 	}
+	iconoImagen(nombre, s, c).Add(gtx.Ops)
+	defer clip.Rect{Max: image.Pt(s, s)}.Push(gtx.Ops).Pop()
+	paint.PaintOp{}.Add(gtx.Ops)
 	return layout.Dimensions{Size: image.Pt(s, s)}
 }
